@@ -73,7 +73,7 @@
                 <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Shared Database Status</p>
                 <div class="flex items-center gap-2">
                     <div id="sync-indicator" class="w-2 h-2 rounded-full bg-amber-500"></div>
-                    <span id="sync-status" class="text-xs font-bold text-slate-300">Connecting...</span>
+                    <span id="sync-status" class="text-xs font-bold text-slate-300 tracking-tight">Initializing...</span>
                 </div>
             </div>
         </div>
@@ -184,7 +184,7 @@
                     <h4 id="save-title" class="font-black text-xl uppercase tracking-tighter">Submit Performance Record</h4>
                     <p class="text-slate-400 text-xs font-medium uppercase tracking-widest">Saved records are instantly shared across the Academy</p>
                 </div>
-                <button onclick="saveEvaluation()" class="w-full md:w-auto px-12 py-4 bg-red-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-red-700 shadow-xl flex items-center justify-center gap-3">
+                <button id="save-btn-main" onclick="saveEvaluation()" class="w-full md:w-auto px-12 py-4 bg-red-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-red-700 shadow-xl flex items-center justify-center gap-3">
                     <i class="fa-solid fa-floppy-disk"></i> <span id="save-button-text">SAVE PERFORMANCE RECORD</span>
                 </button>
             </footer>
@@ -256,21 +256,49 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Global Configuration Variables (from environment)
-        // Helper to check if configuration exists
+        // Configuration Extraction
         let firebaseConfig = null;
         try {
-            if (typeof __firebase_config !== 'undefined') {
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
                 firebaseConfig = JSON.parse(__firebase_config);
             }
-        } catch (e) {
-            console.warn("Firebase configuration not found or invalid.");
-        }
+        } catch (e) { console.warn("Firebase config parsing error."); }
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        // --- AUTH & SYNC STATUS ---
+        // --- GLOBAL STATE ---
+        window.evaluations = [];
+        window.editingRecordId = null;
+        window.currentEval = { candidateName: "", classNumber: "", evalDate: "", instructorName: "", candidateID: "", tasks: [] };
+        window.timerIntervals = {};
+        window.activeTab = 'dashboard';
+
+        let db = null;
+        let auth = null;
+
+        // --- TASK DATA TEMPLATE ---
+        const TASK_TEMPLATES = [
+            { id: 1, title: "PPE - SCBA - Hose Pull Pattern", limit: "4:40", limitSec: 280, checks: ["Morning Checks: Bottle Psi Recorded", "Viber alert Activate", "Pass Device Activate", "Remote Pressure Gauge State Pressure (PSI)", "Wear SCBA Mask", "Inhalation test", "Exhalation Test", "Helmets Chain straps Ear Flap", "Gloves", "Pulled the correct load (Flat, Triple, Minute man)", "Prior to IDLH on air", "Radio to command", "Correct pattern"] },
+            { id: 2, title: "Rope And Knots", limit: "2:00", limitSec: 120, checks: ["Selected correct rope", "Knot tied correctly", "Safety/Dressing applied"] },
+            { id: 3, title: "Ladder Raise & Search", limit: "4:40", limitSec: 280, checks: ["Tips are square", "Dogs are locked", "Butts are square", "Hyliard is tied", "Proper climbing angle", "Ladder is butted and ready", "Entry Division 2 Par 1", "Sound the floor", "Clear the floor", "Victim found command", "Exited structure Par 1 Plus 1"] },
+            { id: 4, title: "Task 4", limit: "4:40", limitSec: 280, checks: ["Task performed correctly", "Safety protocols followed"] },
+            { id: 5, title: "Task 5", limit: "4:40", limitSec: 280, checks: ["Task performed correctly", "Safety protocols followed"] }
+        ];
+
+        // --- HELPERS ---
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = (seconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        function isJobComplete(task) {
+            if (!task || !task.checks || !task.checklistStates) return false;
+            return task.checks.every(label => task.checklistStates[label] === true);
+        }
+
+        // --- AUTH & SYNC STATUS UI ---
         function updateSyncStatus(status, colorClass = 'bg-amber-500') {
             const indicator = document.getElementById('sync-indicator');
             const statusText = document.getElementById('sync-status');
@@ -280,118 +308,27 @@
             }
         }
 
-        // Initialize Firebase ONLY if config exists
-        let db = null;
-        let auth = null;
+        // --- UI & FORM LOGIC ---
+        window.switchTab = (tabId) => {
+            window.activeTab = tabId;
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
+            document.getElementById(`nav-${tabId}`).classList.add('active');
+            
+            const titles = { dashboard: 'Academy Overview', evaluation: 'Skill Performance', database: 'Record Search', analytics: 'Detailed Analytics' };
+            document.getElementById('page-title').innerText = titles[tabId];
 
-        if (firebaseConfig) {
-            try {
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        updateSyncStatus('Cloud Connected', 'bg-green-500');
-                        setupRealtimeListener();
-                    } else {
-                        updateSyncStatus('Auth Required', 'bg-amber-500');
-                        initAuth();
-                    }
-                });
-            } catch (e) {
-                console.error("Firebase Init Error:", e);
-                updateSyncStatus('Config Error', 'bg-red-500');
-            }
-        } else {
-            updateSyncStatus('No Config Found', 'bg-red-500');
-            console.error("Firebase configuration missing. Cloud features will not work.");
-        }
-
-        // --- DATA TEMPLATE ---
-        const TASK_TEMPLATES = [
-            {
-                id: 1, title: "PPE - SCBA - Hose Pull Pattern", limit: "4:40", limitSec: 280,
-                checks: ["Morning Checks: Bottle Psi Recorded", "Viber alert Activate", "Pass Device Activate", "Remote Pressure Gauge State Pressure (PSI)", "Wear SCBA Mask", "Inhalation test", "Exhalation Test", "Helmets Chain straps Ear Flap", "Gloves", "Pulled the correct load (Flat, Triple, Minute man)", "Prior to IDLH on air", "Radio to command", "Correct pattern"]
-            },
-            {
-                id: 2, title: "Rope And Knots", limit: "2:00", limitSec: 120,
-                checks: ["Selected correct rope", "Knot tied correctly", "Safety/Dressing applied"]
-            },
-            {
-                id: 3, title: "Ladder Raise & Search", limit: "4:40", limitSec: 280,
-                checks: ["Tips are square", "Dogs are locked", "Butts are square", "Hyliard is tied", "Proper climbing angle", "Ladder is butted and ready", "Entry Division 2 Par 1", "Sound the floor", "Clear the floor", "Victim found command", "Exited structure Par 1 Plus 1"]
-            },
-            {
-                id: 4, title: "Task 4", limit: "4:40", limitSec: 280,
-                checks: ["Task performed correctly", "Safety protocols followed"]
-            },
-            {
-                id: 5, title: "Task 5", limit: "4:40", limitSec: 280,
-                checks: ["Task performed correctly", "Safety protocols followed"]
-            }
-        ];
-
-        // --- STATE ---
-        window.evaluations = [];
-        window.editingRecordId = null;
-        window.currentEval = {
-            candidateName: "",
-            classNumber: "",
-            evalDate: new Date().toISOString().split('T')[0],
-            instructorName: "",
-            candidateID: "",
-            tasks: []
+            if (tabId === 'dashboard') renderDashboard();
+            if (tabId === 'database') renderDatabase();
+            if (tabId === 'analytics') renderAnalytics();
         };
-        window.timerIntervals = {};
-        window.activeTab = 'dashboard';
 
-        // Attach functions to window for onclick handlers
-        window.switchTab = switchTab;
-        window.prepareNewEvaluation = prepareNewEvaluation;
-        window.toggleTimer = toggleTimer;
-        window.resetTask = resetTask;
-        window.setManualGrade = setManualGrade;
-        window.toggleCheck = toggleCheck;
-        window.saveEvaluation = saveEvaluation;
-        window.editEval = editEval;
-        window.deleteEval = deleteEval;
-        window.exportCSV = exportCSV;
-        window.renderDatabase = renderDatabase;
-
-        // --- AUTHENTICATION ---
-        async function initAuth() {
-            if (!auth) return;
-            try {
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (e) {
-                console.error("Auth Error:", e);
-                updateSyncStatus('Auth Failed', 'bg-red-500');
-            }
-        }
-
-        // --- DATABASE SYNC ---
-        function setupRealtimeListener() {
-            if (!db) return;
-            const evalsRef = collection(db, 'artifacts', appId, 'public', 'data', 'evaluations');
-            onSnapshot(evalsRef, (snapshot) => {
-                window.evaluations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                // Re-render based on current active tab
-                if (window.activeTab === 'dashboard') renderDashboard();
-                if (window.activeTab === 'database') renderDatabase();
-                if (window.activeTab === 'analytics') renderAnalytics();
-            }, (error) => {
-                console.error("Firestore sync error:", error);
-                updateSyncStatus('Sync Error', 'bg-red-500');
-            });
-        }
-
-        // --- INITIALIZATION ---
-        function initCurrentEval() {
+        window.initCurrentEval = () => {
+            // CRITICAL: Clear all existing timer intervals
+            Object.values(window.timerIntervals).forEach(interval => clearInterval(interval));
+            window.timerIntervals = {};
+            
             window.editingRecordId = null;
             window.currentEval = {
                 candidateName: "",
@@ -413,64 +350,15 @@
                     checklistStates: t.checks.reduce((acc, c) => ({ ...acc, [c]: false }), {})
                 }))
             };
-            
             updateFormUI();
-        }
+        };
 
-        function updateFormUI() {
-            document.getElementById('form-name').value = window.currentEval.candidateName;
-            document.getElementById('form-class').value = window.currentEval.classNumber;
-            document.getElementById('form-date').value = window.currentEval.evalDate;
-            document.getElementById('form-instructor').value = window.currentEval.instructorName;
-            document.getElementById('form-id').value = window.currentEval.candidateID;
-            
-            const indicator = document.getElementById('edit-indicator');
-            const saveTitle = document.getElementById('save-title');
-            const saveBtnText = document.getElementById('save-button-text');
-            
-            if (window.editingRecordId) {
-                indicator.classList.remove('hidden');
-                saveTitle.innerText = "Update Shared Record";
-                saveBtnText.innerText = "SAVE CORRECTIONS";
-            } else {
-                indicator.classList.add('hidden');
-                saveTitle.innerText = "Submit Shared Record";
-                saveBtnText.innerText = "SAVE PERFORMANCE RECORD";
-            }
+        window.prepareNewEvaluation = () => {
+            window.initCurrentEval();
+            window.switchTab('evaluation');
+        };
 
-            renderEvaluationTasks();
-        }
-
-        // --- UI ROUTING ---
-        function switchTab(tabId) {
-            window.activeTab = tabId;
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.getElementById(`tab-${tabId}`).classList.add('active');
-            
-            document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
-            document.getElementById(`nav-${tabId}`).classList.add('active');
-            
-            const titles = { dashboard: 'Academy Overview', evaluation: 'Skill Performance', database: 'Record Search', analytics: 'Detailed Analytics' };
-            document.getElementById('page-title').innerText = titles[tabId];
-
-            if (tabId === 'dashboard') renderDashboard();
-            if (tabId === 'database') renderDatabase();
-            if (tabId === 'analytics') renderAnalytics();
-        }
-
-        function prepareNewEvaluation() {
-            initCurrentEval();
-            switchTab('evaluation');
-        }
-
-        // --- FORM LOGIC ---
-        function formatTime(seconds) {
-            const m = Math.floor(seconds / 60);
-            const s = seconds % 60;
-            return `${m}:${s.toString().padStart(2, '0')}`;
-        }
-
-        function toggleTimer(idx) {
+        window.toggleTimer = (idx) => {
             const task = window.currentEval.tasks[idx];
             if (task.isRunning) {
                 clearInterval(window.timerIntervals[idx]);
@@ -479,58 +367,43 @@
                 task.isRunning = true;
                 window.timerIntervals[idx] = setInterval(() => {
                     task.time++;
-                    updateTimerDisplay(idx);
+                    const el = document.getElementById(`timer-val-${idx}`);
+                    if (el) el.innerText = formatTime(task.time);
+                    if (task.time > task.limitSec) {
+                        const box = document.getElementById(`timer-container-${idx}`);
+                        if (box) box.classList.add('text-red-600', 'bg-red-50', 'border-red-200');
+                    }
                 }, 1000);
             }
             renderEvaluationTasks();
-        }
+        };
 
-        function updateTimerDisplay(idx) {
-            const el = document.getElementById(`timer-val-${idx}`);
-            const container = document.getElementById(`timer-container-${idx}`);
-            const task = window.currentEval.tasks[idx];
-            if (el) el.innerText = formatTime(task.time);
-            if (container && task.time > task.limitSec) {
-                container.classList.add('text-red-600', 'bg-red-50', 'border-red-200');
-            }
-        }
-
-        function resetTask(idx) {
+        window.resetTask = (idx) => {
             clearInterval(window.timerIntervals[idx]);
             const template = TASK_TEMPLATES[idx];
             window.currentEval.tasks[idx] = {
                 ...template,
-                time: 0,
-                isRunning: false,
-                manualStatus: null,
-                patternOption: "1",
-                bottlePsi: "",
-                remotePsi: "",
-                knotName: "",
+                time: 0, isRunning: false, manualStatus: null, patternOption: "1",
+                bottlePsi: "", remotePsi: "", knotName: "", 
                 performanceName: template.id >= 4 ? "" : template.title,
-                feedback: "",
-                checklistStates: template.checks.reduce((acc, c) => ({ ...acc, [c]: false }), {})
+                feedback: "", checklistStates: template.checks.reduce((acc, c) => ({ ...acc, [c]: false }), {})
             };
             renderEvaluationTasks();
-        }
+        };
 
-        function setManualGrade(idx, status) {
+        window.setManualGrade = (idx, status) => {
             window.currentEval.tasks[idx].manualStatus = status;
             renderEvaluationTasks();
-        }
+        };
 
-        function toggleCheck(taskIdx, label) {
+        window.toggleCheck = (taskIdx, label) => {
             window.currentEval.tasks[taskIdx].checklistStates[label] = !window.currentEval.tasks[taskIdx].checklistStates[label];
             renderEvaluationTasks();
-        }
+        };
 
-        function isJobComplete(task) {
-            return task.checks.every(label => task.checklistStates[label] === true);
-        }
-
-        async function saveEvaluation() {
-            if (!auth || !auth.currentUser) {
-                alert("Database disconnected or not configured. Cannot save to cloud.");
+        window.saveEvaluation = async () => {
+            if (!auth?.currentUser) {
+                alert("Cannot save: Database not connected.");
                 return;
             }
 
@@ -541,15 +414,15 @@
             window.currentEval.candidateID = document.getElementById('form-id').value;
 
             if (!window.currentEval.candidateName || !window.currentEval.candidateID) {
-                alert("Candidate Name and ID are required.");
+                alert("Required: Candidate Name and ID.");
                 return;
             }
 
             const record = JSON.parse(JSON.stringify(window.currentEval));
             record.finalStatus = record.tasks.every(t => t.manualStatus === 'PASS') ? 'PASS' : 'FAIL';
             record.totalJobComplete = record.tasks.every(t => isJobComplete(t));
-            record.lastModifiedBy = auth.currentUser.uid;
             record.updatedAt = new Date().toISOString();
+            record.instructorUid = auth.currentUser.uid;
 
             try {
                 if (window.editingRecordId) {
@@ -559,172 +432,29 @@
                     const collRef = collection(db, 'artifacts', appId, 'public', 'data', 'evaluations');
                     await addDoc(collRef, record);
                 }
-                
-                initCurrentEval();
-                switchTab('database');
-            } catch (e) {
-                alert("Save failed: " + e.message);
-                console.error("Save Error:", e);
-            }
-        }
+                window.initCurrentEval();
+                window.switchTab('database');
+            } catch (e) { alert("Save Error: " + e.message); }
+        };
 
-        function editEval(id) {
+        window.editEval = (id) => {
             const record = window.evaluations.find(e => e.id === id);
             if (!record) return;
-            
             window.currentEval = JSON.parse(JSON.stringify(record));
             window.editingRecordId = id;
-            
-            switchTab('evaluation');
+            window.switchTab('evaluation');
             updateFormUI();
-        }
+        };
 
-        // --- RENDERERS ---
-        function renderEvaluationTasks() {
-            const container = document.getElementById('evaluation-tasks');
-            container.innerHTML = window.currentEval.tasks.map((task, idx) => `
-                <div class="task-card bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 fade-in ${task.manualStatus ? (task.manualStatus === 'PASS' ? 'ring-4 ring-green-400' : 'ring-4 ring-red-400') : ''}">
-                    <div class="p-6 bg-slate-50 flex flex-col md:flex-row justify-between items-center gap-6 border-b border-slate-100">
-                        <div class="flex items-center gap-4">
-                            <span class="w-12 h-12 rounded-2xl bg-red-700 text-white flex items-center justify-center font-black text-xl">${task.id}</span>
-                            <div>
-                                ${task.id >= 4 ? `
-                                    <input type="text" value="${task.performanceName}" 
-                                        oninput="window.currentEval.tasks[${idx}].performanceName = this.value"
-                                        placeholder="Enter Task Name..." 
-                                        class="font-black text-xl bg-transparent border-b-2 border-slate-200 outline-none w-64">
-                                ` : `
-                                    <h3 class="font-black text-xl text-slate-800 uppercase">${task.title}</h3>
-                                `}
-                                <div class="flex items-center gap-2 mt-1">
-                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">LIMIT: ${task.limit}</span>
-                                    <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${isJobComplete(task) ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">
-                                        ${isJobComplete(task) ? 'Job Complete' : 'Incomplete'}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
+        window.deleteEval = async (id) => {
+            if (!confirm("Delete this shared record?")) return;
+            try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'evaluations', id)); } 
+            catch (e) { alert("Delete failed: " + e.message); }
+        };
 
-                        <div class="flex items-center gap-3">
-                            <div id="timer-container-${idx}" class="px-6 py-3 rounded-2xl font-mono text-3xl font-black border-2 transition-all ${task.time > task.limitSec ? 'text-red-600 border-red-100 bg-red-50' : 'text-slate-800 border-slate-100 bg-white shadow-inner'}">
-                                <span id="timer-val-${idx}">${formatTime(task.time)}</span>
-                            </div>
-                            <button onclick="toggleTimer(${idx})" class="px-6 py-3 rounded-2xl font-black text-xs uppercase shadow-lg ${task.isRunning ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'}">
-                                ${task.isRunning ? 'PAUSE' : 'START'}
-                            </button>
-                            <button onclick="resetTask(${idx})" class="p-3 rounded-2xl bg-slate-100 text-slate-400 hover:text-red-600 transition-colors"><i class="fa-solid fa-rotate-right"></i></button>
-                        </div>
-                    </div>
-
-                    <div class="p-8 space-y-8">
-                        ${task.id === 1 ? `
-                            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 inline-block">
-                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Hose Pull Pattern Selection</label>
-                                <select onchange="window.currentEval.tasks[${idx}].patternOption = this.value" class="p-2 border-2 border-slate-200 rounded-lg font-bold text-sm bg-white">
-                                    <option value="1" ${task.patternOption === '1' ? 'selected' : ''}>1</option>
-                                    <option value="2" ${task.patternOption === '2' ? 'selected' : ''}>2</option>
-                                    <option value="3" ${task.patternOption === '3' ? 'selected' : ''}>3</option>
-                                </select>
-                            </div>
-                        ` : ''}
-
-                        ${task.id === 2 ? `
-                            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 inline-block w-full sm:w-auto">
-                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Knot Name Being Tested</label>
-                                <input type="text" value="${task.knotName}" 
-                                    oninput="window.currentEval.tasks[${idx}].knotName = this.value"
-                                    placeholder="Enter Knot Name..." 
-                                    class="w-full sm:w-64 p-2 border-2 border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-red-500 bg-white shadow-inner">
-                            </div>
-                        ` : ''}
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            ${task.checks.map(c => `
-                                <label onclick="toggleCheck(${idx}, '${c}')" class="flex items-start gap-4 p-4 rounded-2xl border transition-all cursor-pointer group ${task.checklistStates[c] ? 'bg-green-50 border-green-200' : 'bg-white border-slate-100 hover:bg-slate-50'}">
-                                    <input type="checkbox" ${task.checklistStates[c] ? 'checked' : ''} class="mt-1 w-5 h-5 rounded border-slate-300 text-red-600 pointer-events-none">
-                                    <div class="flex-1">
-                                        <span class="text-sm font-bold ${task.checklistStates[c] ? 'text-green-800' : 'text-slate-600'}">${c}</span>
-                                        ${(c.includes('Bottle Psi') || c.includes('Remote Pressure')) ? `
-                                            <div class="mt-2" onclick="event.stopPropagation()">
-                                                <input type="number" 
-                                                    value="${c.includes('Bottle Psi') ? task.bottlePsi : task.remotePsi}"
-                                                    oninput="window.currentEval.tasks[${idx}][${c.includes('Bottle Psi') ? "'bottlePsi'" : "'remotePsi'"}] = this.value"
-                                                    placeholder="PSI" 
-                                                    class="w-24 p-1 text-xs border border-slate-200 rounded-lg font-bold bg-white">
-                                            </div>
-                                        ` : ''}
-                                    </div>
-                                </label>
-                            `).join('')}
-                        </div>
-
-                        <div class="pt-6 border-t border-slate-100">
-                            <textarea oninput="window.currentEval.tasks[${idx}].feedback = this.value" 
-                                class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl min-h-[80px] text-sm font-medium focus:bg-white outline-none" 
-                                placeholder="Instructor notes...">${task.feedback}</textarea>
-                            <div class="flex flex-col md:flex-row justify-between items-center bg-slate-50 p-4 rounded-2xl mt-6 gap-4">
-                                <div class="flex items-center gap-3">
-                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Final Grade:</span>
-                                    <button onclick="setManualGrade(${idx}, 'PASS')" class="px-8 py-2 rounded-xl font-black text-xs uppercase transition-all ${task.manualStatus === 'PASS' ? 'bg-green-600 text-white shadow-lg' : 'bg-white border text-slate-400 shadow-sm'}">Pass</button>
-                                    <button onclick="setManualGrade(${idx}, 'FAIL')" class="px-8 py-2 rounded-xl font-black text-xs uppercase transition-all ${task.manualStatus === 'FAIL' ? 'bg-red-600 text-white shadow-lg' : 'bg-white border text-slate-400 shadow-sm'}">Fail</button>
-                                </div>
-                                ${task.manualStatus ? `<div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">RECORDED: ${task.manualStatus} @ ${formatTime(task.time)}</div>` : ''}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function renderDashboard() {
-            document.getElementById('stat-total').innerText = window.evaluations.length;
-            
-            const passes = window.evaluations.filter(e => e.finalStatus === 'PASS').length;
-            const passRate = window.evaluations.length > 0 ? Math.round((passes / window.evaluations.length) * 100) : 0;
-            document.getElementById('stat-pass-rate').innerText = `${passRate}%`;
-
-            const completes = window.evaluations.filter(e => e.totalJobComplete).length;
-            const completeRate = window.evaluations.length > 0 ? Math.round((completes / window.evaluations.length) * 100) : 0;
-            document.getElementById('stat-job-complete').innerText = `${completeRate}%`;
-
-            const list = document.getElementById('recent-evals-list');
-            list.innerHTML = window.evaluations.slice(0, 5).map(e => {
-                const allChecks = e.tasks.flatMap(t => Object.values(t.checklistStates));
-                const checkedCount = allChecks.filter(v => v).length;
-                const totalCount = allChecks.length;
-                const pct = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0;
-
-                return `
-                    <tr>
-                        <td class="px-6 py-4">
-                            <div class="font-bold text-slate-800">${e.candidateName}</div>
-                            <div class="text-[10px] text-slate-400 uppercase font-black">${e.instructorName}</div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${e.finalStatus === 'PASS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${e.finalStatus}</span>
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="flex items-center gap-2">
-                                <div class="w-24 bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                                    <div class="bg-blue-500 h-full" style="width: ${pct}%"></div>
-                                </div>
-                                <span class="text-[10px] font-black text-slate-400">${pct}%</span>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4">
-                            ${e.totalJobComplete ? 
-                                '<span class="text-[10px] font-black text-green-600 uppercase"><i class="fa-solid fa-check mr-1"></i> COMPLETE</span>' : 
-                                '<span class="text-[10px] font-black text-amber-500 uppercase"><i class="fa-solid fa-triangle-exclamation mr-1"></i> INCOMPLETE</span>'}
-                        </td>
-                    </tr>
-                `;
-            }).join('') || '<tr><td colspan="4" class="p-12 text-center text-slate-400 italic">No global records found.</td></tr>';
-        }
-
-        function renderDatabase() {
+        window.renderDatabase = () => {
             const queryVal = document.getElementById('db-search').value.toLowerCase();
             const list = document.getElementById('db-list');
-            
             const filtered = window.evaluations.filter(e => 
                 (e.candidateName || '').toLowerCase().includes(queryVal) || 
                 (e.candidateID || '').toLowerCase().includes(queryVal) || 
@@ -732,133 +462,193 @@
             );
 
             list.innerHTML = filtered.map(e => {
-                const totalChecks = e.tasks.flatMap(t => Object.values(t.checklistStates));
-                const checkedCount = totalChecks.filter(v => v).length;
-                const totalCount = totalChecks.length;
-                const pct = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0;
+                const allChecks = (e.tasks || []).flatMap(t => Object.values(t.checklistStates || {}));
+                const pct = allChecks.length > 0 ? Math.round((allChecks.filter(v => v).length / allChecks.length) * 100) : 0;
+                return `<tr class="hover:bg-slate-50 transition-all group">
+                    <td class="px-6 py-4">
+                        <div class="font-black text-slate-900">${e.candidateName}</div>
+                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">${e.evalDate}</div>
+                    </td>
+                    <td class="px-6 py-4 text-sm font-bold text-slate-500">${e.instructorName}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${e.finalStatus === 'PASS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${e.finalStatus}</span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex flex-col gap-1">
+                            <span class="text-[10px] font-black uppercase ${e.totalJobComplete ? 'text-green-600' : 'text-amber-500'}">${e.totalJobComplete ? 'Complete' : 'Incomplete'}</span>
+                            <div class="w-32 bg-slate-100 h-1 rounded-full"><div class="bg-slate-400 h-full" style="width: ${pct}%"></div></div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-right opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick="editEval('${e.id}')" class="text-slate-400 hover:text-blue-600 p-2"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deleteEval('${e.id}')" class="text-slate-400 hover:text-red-600 p-2"><i class="fa-solid fa-trash"></i></button>
+                    </td></tr>`;
+            }).join('') || '<tr><td colspan="5" class="p-12 text-center text-slate-400 italic">Database is empty.</td></tr>';
+        };
 
-                return `
-                    <tr class="hover:bg-slate-50 transition-all group">
-                        <td class="px-6 py-4">
-                            <div class="font-black text-slate-900">${e.candidateName}</div>
-                            <div class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">${e.evalDate}</div>
-                        </td>
-                        <td class="px-6 py-4 text-sm font-bold text-slate-500">${e.instructorName}</td>
-                        <td class="px-6 py-4">
-                            <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${e.finalStatus === 'PASS' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}">${e.finalStatus}</span>
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="flex flex-col gap-1">
-                                <span class="text-[10px] font-black uppercase ${e.totalJobComplete ? 'text-green-600' : 'text-amber-500'}">${e.totalJobComplete ? 'Complete' : 'Incomplete'}</span>
-                                <div class="w-32 bg-slate-100 h-1 rounded-full">
-                                    <div class="bg-slate-400 h-full" style="width: ${pct}%"></div>
+        window.exportCSV = () => {
+            if (window.evaluations.length === 0) return;
+            const headers = ["Candidate", "ID", "Class", "Date", "Instructor", "Task", "Time", "Grade", "Job Status"];
+            const rows = window.evaluations.flatMap(e => (e.tasks || []).map(t => [
+                (e.candidateName || "").replace(/,/g, ''), e.candidateID, e.classNumber, e.evalDate, 
+                (e.instructorName || "").replace(/,/g, ''), (t.performanceName || t.title).replace(/,/g, ''), 
+                formatTime(t.time), t.manualStatus || 'N/A', isJobComplete(t) ? 'COMPLETE' : 'INCOMPLETE'
+            ]));
+            const csv = headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `SPC_Fire_Export.csv`);
+            a.click();
+        };
+
+        // --- RENDERERS ---
+        function renderEvaluationTasks() {
+            const container = document.getElementById('evaluation-tasks');
+            if (!window.currentEval.tasks) return;
+            container.innerHTML = window.currentEval.tasks.map((task, idx) => `
+                <div class="task-card bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 fade-in ${task.manualStatus ? (task.manualStatus === 'PASS' ? 'ring-4 ring-green-400' : 'ring-4 ring-red-400') : ''}">
+                    <div class="p-6 bg-slate-50 flex flex-col md:flex-row justify-between items-center gap-6 border-b border-slate-100">
+                        <div class="flex items-center gap-4">
+                            <span class="w-12 h-12 rounded-2xl bg-red-700 text-white flex items-center justify-center font-black text-xl">${task.id}</span>
+                            <div>
+                                ${task.id >= 4 ? `<input type="text" value="${task.performanceName || ''}" oninput="window.currentEval.tasks[${idx}].performanceName = this.value" placeholder="Enter Task Name..." class="font-black text-xl bg-transparent border-b-2 border-slate-200 outline-none w-64">` : `<h3 class="font-black text-xl text-slate-800 uppercase">${task.title}</h3>`}
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">LIMIT: ${task.limit}</span>
+                                    <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${isJobComplete(task) ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">${isJobComplete(task) ? 'Job Complete' : 'Incomplete'}</span>
                                 </div>
                             </div>
-                        </td>
-                        <td class="px-6 py-4 text-right">
-                            <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onclick="editEval('${e.id}')" class="text-slate-400 hover:text-blue-600 transition-colors p-2" title="Edit">
-                                    <i class="fa-solid fa-pen-to-square"></i>
-                                </button>
-                                <button onclick="deleteEval('${e.id}')" class="text-slate-400 hover:text-red-600 transition-colors p-2" title="Delete">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div id="timer-container-${idx}" class="px-6 py-3 rounded-2xl font-mono text-3xl font-black border-2 ${task.time > task.limitSec ? 'text-red-600 border-red-100 bg-red-50' : 'text-slate-800 border-slate-100 bg-white shadow-inner'}"><span id="timer-val-${idx}">${formatTime(task.time)}</span></div>
+                            <button onclick="toggleTimer(${idx})" class="px-6 py-3 rounded-2xl font-black text-xs uppercase shadow-lg ${task.isRunning ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'}">${task.isRunning ? 'PAUSE' : 'START'}</button>
+                            <button onclick="resetTask(${idx})" class="p-3 rounded-2xl bg-slate-100 text-slate-400 hover:text-red-600 transition-colors"><i class="fa-solid fa-rotate-right"></i></button>
+                        </div>
+                    </div>
+                    <div class="p-8 space-y-8">
+                        ${task.id === 1 ? `<div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 inline-block"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Pattern</label><select onchange="window.currentEval.tasks[${idx}].patternOption = this.value" class="p-2 border-2 border-slate-200 rounded-lg font-bold text-sm bg-white"><option value="1" ${task.patternOption === '1' ? 'selected' : ''}>1</option><option value="2" ${task.patternOption === '2' ? 'selected' : ''}>2</option><option value="3" ${task.patternOption === '3' ? 'selected' : ''}>3</option></select></div>` : ''}
+                        ${task.id === 2 ? `<div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 inline-block w-full sm:w-auto"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Knot Tested</label><input type="text" value="${task.knotName || ''}" oninput="window.currentEval.tasks[${idx}].knotName = this.value" placeholder="Enter Knot Name..." class="w-full sm:w-64 p-2 border-2 border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-red-500 bg-white"></div>` : ''}
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            ${task.checks.map(c => `
+                                <label onclick="toggleCheck(${idx}, '${c}')" class="flex items-start gap-4 p-4 rounded-2xl border transition-all cursor-pointer group ${task.checklistStates[c] ? 'bg-green-50 border-green-200' : 'bg-white border-slate-100 hover:bg-slate-50'}">
+                                    <input type="checkbox" ${task.checklistStates[c] ? 'checked' : ''} class="mt-1 w-5 h-5 rounded border-slate-300 text-red-600 pointer-events-none">
+                                    <div class="flex-1">
+                                        <span class="text-sm font-bold ${task.checklistStates[c] ? 'text-green-800' : 'text-slate-600'}">${c}</span>
+                                        ${(c.includes('Bottle Psi') || c.includes('Remote Pressure')) ? `<div class="mt-2" onclick="event.stopPropagation()"><input type="number" value="${c.includes('Bottle Psi') ? (task.bottlePsi || '') : (task.remotePsi || '')}" oninput="window.currentEval.tasks[${idx}][${c.includes('Bottle Psi') ? "'bottlePsi'" : "'remotePsi'"}] = this.value" placeholder="PSI" class="w-24 p-1 text-xs border border-slate-200 rounded-lg font-bold"></div>` : ''}
+                                    </div>
+                                </label>`).join('')}
+                        </div>
+                        <div class="pt-6 border-t border-slate-100">
+                            <textarea oninput="window.currentEval.tasks[${idx}].feedback = this.value" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl min-h-[80px] text-sm font-medium focus:bg-white outline-none" placeholder="Instructor notes...">${task.feedback || ""}</textarea>
+                            <div class="flex flex-col md:flex-row justify-between items-center bg-slate-50 p-4 rounded-2xl mt-6 gap-4">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Grade:</span>
+                                    <button onclick="setManualGrade(${idx}, 'PASS')" class="px-8 py-2 rounded-xl font-black text-xs uppercase transition-all ${task.manualStatus === 'PASS' ? 'bg-green-600 text-white' : 'bg-white border text-slate-400'}">Pass</button>
+                                    <button onclick="setManualGrade(${idx}, 'FAIL')" class="px-8 py-2 rounded-xl font-black text-xs uppercase transition-all ${task.manualStatus === 'FAIL' ? 'bg-red-600 text-white' : 'bg-white border text-slate-400'}">Fail</button>
+                                </div>
+                                ${task.manualStatus ? `<div class="text-[10px] font-black text-slate-500 uppercase">RECORDED: ${task.manualStatus} @ ${formatTime(task.time)}</div>` : ''}
                             </div>
-                        </td>
-                    </tr>
-                `;
-            }).join('') || '<tr><td colspan="5" class="p-12 text-center text-slate-400 italic">No search results in shared database.</td></tr>';
+                        </div>
+                    </div>
+                </div>`).join('');
+        }
+
+        function renderDashboard() {
+            document.getElementById('stat-total').innerText = window.evaluations.length;
+            const passes = window.evaluations.filter(e => e.finalStatus === 'PASS').length;
+            document.getElementById('stat-pass-rate').innerText = `${window.evaluations.length > 0 ? Math.round((passes / window.evaluations.length) * 100) : 0}%`;
+            const completes = window.evaluations.filter(e => e.totalJobComplete).length;
+            document.getElementById('stat-job-complete').innerText = `${window.evaluations.length > 0 ? Math.round((completes / window.evaluations.length) * 100) : 0}%`;
+            
+            const list = document.getElementById('recent-evals-list');
+            list.innerHTML = window.evaluations.slice(0, 5).map(e => {
+                const allChecks = (e.tasks || []).flatMap(t => Object.values(t.checklistStates || {}));
+                const pct = allChecks.length > 0 ? Math.round((allChecks.filter(v => v).length / allChecks.length) * 100) : 0;
+                return `<tr><td class="px-6 py-4"><div class="font-bold">${e.candidateName}</div><div class="text-[10px] text-slate-400 font-black uppercase">${e.instructorName}</div></td><td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${e.finalStatus === 'PASS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${e.finalStatus}</span></td><td class="px-6 py-4"><div class="flex items-center gap-2"><div class="w-24 bg-slate-100 h-1.5 rounded-full overflow-hidden"><div class="bg-blue-500 h-full" style="width: ${pct}%"></div></div><span class="text-[10px] font-black">${pct}%</span></div></td><td class="px-6 py-4">${e.totalJobComplete ? '<span class="text-[10px] font-black text-green-600"><i class="fa-solid fa-check mr-1"></i> COMPLETE</span>' : '<span class="text-[10px] font-black text-amber-500"><i class="fa-solid fa-triangle-exclamation mr-1"></i> INCOMPLETE</span>'}</td></tr>`;
+            }).join('') || '<tr><td colspan="4" class="p-12 text-center text-slate-400 italic">No global records found.</td></tr>';
         }
 
         function renderAnalytics() {
             const container = document.getElementById('analytics-grid');
             if (window.evaluations.length === 0) {
-                container.innerHTML = '<div class="col-span-full py-20 text-center text-slate-400 italic">Awaiting global data sync...</div>';
+                container.innerHTML = '<div class="col-span-full py-20 text-center text-slate-400 italic">Awaiting shared data...</div>';
                 return;
             }
-
             container.innerHTML = TASK_TEMPLATES.map(tmpl => {
                 const taskEvals = window.evaluations.flatMap(e => (e.tasks || []).filter(t => t.id === tmpl.id));
                 const total = taskEvals.length;
-                const passes = taskEvals.filter(t => t.manualStatus === 'PASS').length;
-                const completes = taskEvals.filter(t => isJobComplete(t)).length;
-                const totalSeconds = taskEvals.reduce((acc, t) => acc + (t.time || 0), 0);
-                const avgTime = total > 0 ? Math.round(totalSeconds / total) : 0;
-                
-                const passRate = total > 0 ? Math.round((passes / total) * 100) : 0;
-                const completeRate = total > 0 ? Math.round((completes / total) * 100) : 0;
-
-                return `
-                    <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 fade-in">
-                        <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">${tmpl.title}</h4>
-                        <div class="flex justify-between items-end">
-                            <div>
-                                <p class="text-2xl font-black text-slate-900 leading-none">${passRate}%</p>
-                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Pass Grade</span>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-2xl font-black text-blue-600 leading-none">${completeRate}%</p>
-                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Job Finish</span>
-                            </div>
-                        </div>
-                        <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                            <div class="bg-red-600 h-full" style="width: ${passRate}%"></div>
-                        </div>
-                        <p class="text-xs font-bold text-slate-500 uppercase tracking-tight">AVG TIME: ${formatTime(avgTime)}</p>
-                    </div>
-                `;
+                const passRate = total > 0 ? Math.round((taskEvals.filter(t => t.manualStatus === 'PASS').length / total) * 100) : 0;
+                const completeRate = total > 0 ? Math.round((taskEvals.filter(t => isJobComplete(t)).length / total) * 100) : 0;
+                const avgTime = total > 0 ? Math.round(taskEvals.reduce((acc, t) => acc + (t.time || 0), 0) / total) : 0;
+                return `<div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 fade-in"><h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">${tmpl.title}</h4><div class="flex justify-between items-end"><div><p class="text-2xl font-black text-slate-900 leading-none">${passRate}%</p><span class="text-[10px] font-bold text-slate-400 uppercase">Pass</span></div><div class="text-right"><p class="text-2xl font-black text-blue-600 leading-none">${completeRate}%</p><span class="text-[10px] font-bold text-slate-400 uppercase">Finish</span></div></div><div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden"><div class="bg-red-600 h-full" style="width: ${passRate}%"></div></div><p class="text-xs font-bold text-slate-500 uppercase tracking-tight">AVG: ${formatTime(avgTime)}</p></div>`;
             }).join('');
         }
 
-        async function deleteEval(id) {
-            if (!db) return;
-            if (confirm("Are you sure you want to delete this shared record? It will be removed for all instructors.")) {
-                try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'evaluations', id);
-                    await deleteDoc(docRef);
-                } catch (e) {
-                    alert("Delete failed: " + e.message);
-                }
-            }
+        // --- INIT & BOOTSTRAP ---
+        function initCurrentEval() {
+            window.editingRecordId = null;
+            window.currentEval = {
+                candidateName: "", classNumber: "", evalDate: new Date().toISOString().split('T')[0],
+                instructorName: localStorage.getItem('spc_instructor') || "", candidateID: "",
+                tasks: TASK_TEMPLATES.map(t => ({
+                    ...t, time: 0, isRunning: false, manualStatus: null, patternOption: "1", bottlePsi: "", remotePsi: "", knotName: "", performanceName: t.id >= 4 ? "" : t.title, feedback: "", checklistStates: t.checks.reduce((acc, c) => ({ ...acc, [c]: false }), {})
+                }))
+            };
+            updateFormUI();
         }
 
-        function exportCSV() {
-            if (window.evaluations.length === 0) return;
-            const headers = ["Candidate", "ID", "Class", "Date", "Instructor", "Task", "Time", "Grade", "Job Status", "Pattern Detail", "Knot Detail", "Notes"];
-            const rows = window.evaluations.flatMap(e => e.tasks.map(t => {
-                const patternDetail = t.id === 1 ? `Pattern ${t.patternOption}` : '';
-                const knotDetail = t.id === 2 ? t.knotName : '';
-                
-                const cleanName = (e.candidateName || "").replace(/,/g, '');
-                const cleanInstructor = (e.instructorName || "").replace(/,/g, '');
-                const cleanFeedback = (t.feedback || "").replace(/,/g, ' ').replace(/\n/g, ' ');
-
-                return [
-                    cleanName, e.candidateID, e.classNumber, e.evalDate, 
-                    cleanInstructor, t.performanceName || t.title, 
-                    formatTime(t.time), t.manualStatus || 'N/A', 
-                    isJobComplete(t) ? 'COMPLETE' : 'INCOMPLETE', 
-                    patternDetail, knotDetail, cleanFeedback
-                ];
-            }));
-
-            let csv = headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.setAttribute('href', url);
-            a.setAttribute('download', `SPC_Fire_Academy_Shared_Data_${new Date().toISOString().split('T')[0]}.csv`);
-            a.click();
+        function updateFormUI() {
+            document.getElementById('form-name').value = window.currentEval.candidateName;
+            document.getElementById('form-class').value = window.currentEval.classNumber;
+            document.getElementById('form-date').value = window.currentEval.evalDate;
+            document.getElementById('form-instructor').value = window.currentEval.instructorName;
+            document.getElementById('form-id').value = window.currentEval.candidateID;
+            document.getElementById('edit-indicator').classList.toggle('hidden', !window.editingRecordId);
+            document.getElementById('save-title').innerText = window.editingRecordId ? "Update Shared Record" : "Submit Performance Record";
+            document.getElementById('save-button-text').innerText = window.editingRecordId ? "SAVE CORRECTIONS" : "SAVE PERFORMANCE RECORD";
+            renderEvaluationTasks();
         }
 
-        // Initialize App
         async function bootstrap() {
-            await initAuth();
-            const instructor = localStorage.getItem('spc_instructor');
-            if (instructor) {
-                document.getElementById('current-instructor-id').value = instructor;
+            const storedInstr = localStorage.getItem('spc_instructor');
+            if (storedInstr) document.getElementById('current-instructor-id').value = storedInstr;
+            
+            // Start with a clean state
+            window.initCurrentEval();
+
+            if (!firebaseConfig) {
+                updateSyncStatus('Config Missing', 'bg-red-600');
+                return;
             }
-            initCurrentEval();
+
+            try {
+                const appInstance = initializeApp(firebaseConfig);
+                auth = getAuth(appInstance);
+                db = getFirestore(appInstance);
+
+                // Wait for Auth
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        updateSyncStatus('Cloud Connected', 'bg-green-500');
+                        const evalsRef = collection(db, 'artifacts', appId, 'public', 'data', 'evaluations');
+                        onSnapshot(evalsRef, (snapshot) => {
+                            window.evaluations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                            window.switchTab(window.activeTab); 
+                        }, (err) => {
+                            updateSyncStatus('Sync Error', 'bg-red-600');
+                        });
+                    }
+                });
+            } catch (e) {
+                updateSyncStatus('Failed', 'bg-red-600');
+            }
         }
 
         bootstrap();
