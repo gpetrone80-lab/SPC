@@ -145,7 +145,7 @@
     </main>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
@@ -251,7 +251,7 @@
         };
 
         window.saveEvaluation = async () => {
-            if (!auth?.currentUser) return alert("Database not connected.");
+            if (!auth?.currentUser) return alert("Database not connected. Check your Firebase console settings.");
             
             const c = window.state.current;
             c.name = document.getElementById('eval-name').value;
@@ -262,7 +262,6 @@
 
             if (!c.name || !c.id) return alert("Required: Candidate Name and ID.");
 
-            // Deep clone state to record
             const record = JSON.parse(JSON.stringify(c));
             record.finalStatus = record.tasks.every(t => t.manualStatus === 'PASS') ? 'PASS' : 'FAIL';
             record.totalJobComplete = record.tasks.every(isJobDone);
@@ -426,9 +425,12 @@
             prepareNewEvaluation();
 
             try {
-                const app = initializeApp(firebaseConfig);
+                // Reuse existing app instance if it exists
+                const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
+                
+                // Sign in to allow access
                 await signInAnonymously(auth);
                 
                 onAuthStateChanged(auth, user => {
@@ -439,10 +441,18 @@
                         onSnapshot(ref, snap => {
                             window.state.evals = snap.docs.map(d => ({id: d.id, ...d.data()}));
                             refreshUI();
-                        }, err => { console.error("Sync Failure:", err); });
+                        }, err => { 
+                            console.error("Sync Failure:", err);
+                            document.getElementById('sync-status').innerText = "Sync Error";
+                            document.getElementById('sync-indicator').className = "w-2 h-2 rounded-full bg-red-500";
+                        });
                     }
                 });
-            } catch (e) { document.getElementById('sync-status').innerText = "Config Error"; }
+            } catch (e) { 
+                console.error("Firebase Config Error:", e);
+                document.getElementById('sync-status').innerText = "Config Error"; 
+                document.getElementById('sync-indicator').className = "w-2 h-2 rounded-full bg-red-500";
+            }
         }
 
         start();
