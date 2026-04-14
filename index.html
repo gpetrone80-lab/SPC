@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPC Fire Academy - Shared Performance Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .sidebar-link.active {
+            background-color: #dc2626;
+            color: white;
+            box-shadow: 0 10px 15px -3px rgba(220, 38, 38, 0.3);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background-color: white !important; }
+            .task-card { break-inside: avoid; border: 1px solid #e2e8f0 !important; box-shadow: none !important; }
+        }
+
+        /* Animation */
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col md:flex-row">
+
+    <!-- Sidebar -->
+    <aside class="no-print w-64 bg-slate-900 text-white flex-shrink-0 h-screen sticky top-0 hidden md:flex flex-col border-r border-slate-800">
+        <div class="p-6 border-b border-slate-800 flex items-center gap-3">
+            <div class="bg-red-600 p-2 rounded-lg">
+                <i class="fa-solid fa-fire-extinguisher text-white text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-black text-lg leading-none uppercase tracking-tighter">SPC FIRE</h1>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Academy CMS</p>
+            </div>
+        </div>
+        
+        <nav class="flex-1 p-4 space-y-2 mt-4">
+            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="sidebar-link active w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-slate-400 hover:bg-slate-800 hover:text-white">
+                <i class="fa-solid fa-chart-pie w-5"></i> Dashboard
+            </button>
+            <button onclick="prepareNewEvaluation()" id="nav-evaluation" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-slate-400 hover:bg-slate-800 hover:text-white">
+                <i class="fa-solid fa-plus w-5"></i> New Evaluation
+            </button>
+            <button onclick="switchTab('database')" id="nav-database" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-slate-400 hover:bg-slate-800 hover:text-white">
+                <i class="fa-solid fa-users w-5"></i> Candidate Pool
+            </button>
+            <button onclick="switchTab('analytics')" id="nav-analytics" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-slate-400 hover:bg-slate-800 hover:text-white">
+                <i class="fa-solid fa-chart-line w-5"></i> Analytics
+            </button>
+        </nav>
+        
+        <div class="p-4 border-t border-slate-800">
+            <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Shared Database Status</p>
+                <div class="flex items-center gap-2">
+                    <div id="sync-indicator" class="w-2 h-2 rounded-full bg-amber-500"></div>
+                    <span id="sync-status" class="text-xs font-bold text-slate-300">Connecting...</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 lg:p-10 overflow-y-auto max-h-screen custom-scrollbar">
+        
+        <!-- Page Header -->
+        <header class="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 no-print">
+            <div>
+                <h2 id="page-title" class="text-3xl font-black text-slate-900 uppercase tracking-tighter">Academy Overview</h2>
+                <p class="text-slate-500 font-bold uppercase text-xs tracking-widest mt-1">St. Petersburg College Fire Academy</p>
+            </div>
+            <div id="header-actions" class="flex items-center gap-3">
+                <div class="bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Instructor</p>
+                    <input type="text" id="current-instructor-id" oninput="localStorage.setItem('spc_instructor', this.value)" placeholder="Enter Name..." class="text-sm font-black text-slate-800 outline-none w-32">
+                </div>
+                <button onclick="prepareNewEvaluation()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i> NEW ENTRY
+                </button>
+            </div>
+        </header>
+
+        <!-- DASHBOARD TAB -->
+        <section id="tab-dashboard" class="tab-content active space-y-6 fade-in">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Total Evaluations</p>
+                    <h3 id="stat-total" class="text-4xl font-black text-slate-900">0</h3>
+                </div>
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Academy Pass Rate</p>
+                    <h3 id="stat-pass-rate" class="text-4xl font-black text-red-600">0%</h3>
+                </div>
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Job Completion</p>
+                    <h3 id="stat-job-complete" class="text-4xl font-black text-blue-600">0%</h3>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                    <h4 class="font-black text-slate-900 uppercase tracking-tight">Global Activity Log (Live)</h4>
+                    <button onclick="switchTab('database')" class="text-red-600 font-bold text-xs uppercase tracking-widest">View Database</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50 border-b border-slate-100">
+                            <tr>
+                                <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase">Candidate</th>
+                                <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase">Status</th>
+                                <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase">Skills Check</th>
+                                <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase">Job State</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-evals-list" class="divide-y divide-slate-100">
+                            <!-- Injected -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- EVALUATION TAB -->
+        <section id="tab-evaluation" class="tab-content space-y-8 fade-in">
+            <!-- Candidate Profile Form -->
+            <div class="bg-white rounded-3xl shadow-xl border-t-8 border-red-600 p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="font-black uppercase text-xs tracking-widest text-slate-400">Candidate Profile Entry</h2>
+                    <div id="edit-indicator" class="hidden px-4 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-widest">
+                        <i class="fa-solid fa-pen-to-square mr-1"></i> Editing Mode
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Candidate Name</label>
+                        <input type="text" id="form-name" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-red-500 outline-none font-bold text-slate-800">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Class Number</label>
+                        <input type="text" id="form-class" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-red-500 outline-none font-bold text-slate-800">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</label>
+                        <input type="date" id="form-date" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-red-500 outline-none font-bold text-slate-800">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Instructor</label>
+                        <input type="text" id="form-instructor" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-red-500 outline-none font-bold text-slate-800">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Candidate ID</label>
+                        <input type="text" id="form-id" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-red-500 outline-none font-bold text-slate-800">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tasks Container -->
+            <div id="evaluation-tasks" class="space-y-8">
+                <!-- Injected via JS -->
+            </div>
+
+            <!-- Form Footer -->
+            <footer class="bg-slate-900 p-8 rounded-3xl shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6 no-print">
+                <div class="text-white">
+                    <h4 id="save-title" class="font-black text-xl uppercase tracking-tighter">Submit Performance Record</h4>
+                    <p class="text-slate-400 text-xs font-medium uppercase tracking-widest">Saved records are instantly shared across the Academy</p>
+                </div>
+                <button onclick="saveEvaluation()" class="w-full md:w-auto px-12 py-4 bg-red-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-red-700 shadow-xl flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-floppy-disk"></i> <span id="save-button-text">SAVE PERFORMANCE RECORD</span>
+                </button>
+            </footer>
+        </section>
+
+        <!-- DATABASE TAB -->
+        <section id="tab-database" class="tab-content space-y-6 fade-in">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                <div class="relative w-full md:w-96">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="db-search" oninput="renderDatabase()" placeholder="Search Name, ID, or Instructor..." class="w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-red-500 outline-none font-bold">
+                </div>
+                <button onclick="exportCSV()" class="flex-1 md:flex-none px-6 py-3 bg-slate-900 text-white rounded-xl font-black text-xs uppercase flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-download"></i> EXPORT DETAILED CSV
+                </button>
+            </div>
+
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-50 border-b border-slate-100">
+                        <tr>
+                            <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase">Candidate</th>
+                            <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase">Instructor</th>
+                            <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase">Grade</th>
+                            <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase">Job Completion</th>
+                            <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="db-list" class="divide-y divide-slate-100">
+                        <!-- Injected -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ANALYTICS TAB -->
+        <section id="tab-analytics" class="tab-content space-y-8 fade-in">
+            <div id="analytics-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Injected via JS -->
+            </div>
+            
+            <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                <h3 class="font-black text-slate-900 uppercase tracking-tight mb-6">Performance Matrix Glossary</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm text-slate-600 font-medium">
+                    <div class="space-y-2">
+                        <p class="font-black text-slate-900 uppercase text-xs">Manual Pass Rate</p>
+                        <p>The percentage of candidates who received a "PASS" grade from the instructor based on overall technical performance.</p>
+                    </div>
+                    <div class="space-y-2">
+                        <p class="font-black text-blue-600 uppercase text-xs">Job Completion Rate</p>
+                        <p>The percentage of candidates who successfully completed every single granular skill checkbox for that task.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Mobile Nav -->
+    <nav class="md:hidden fixed bottom-4 left-4 right-4 bg-slate-900 text-white rounded-3xl p-4 flex justify-around shadow-2xl z-[100] border border-slate-800 no-print">
+        <button onclick="switchTab('dashboard')" class="mobile-nav-link text-slate-500"><i class="fa-solid fa-chart-pie text-xl"></i></button>
+        <button onclick="prepareNewEvaluation()" class="mobile-nav-link text-slate-500"><i class="fa-solid fa-plus text-xl"></i></button>
+        <button onclick="switchTab('database')" class="mobile-nav-link text-slate-500"><i class="fa-solid fa-users text-xl"></i></button>
+        <button onClick="switchTab('analytics')" class="mobile-nav-link text-slate-500"><i class="fa-solid fa-chart-line text-xl"></i></button>
+    </nav>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Configuration Variables (from environment)
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- DATA TEMPLATE ---
+        const TASK_TEMPLATES = [
+            {
+                id: 1, title: "PPE - SCBA - Hose Pull Pattern", limit: "4:40", limitSec: 280,
+                checks: ["Morning Checks: Bottle Psi Recorded", "Viber alert Activate", "Pass Device Activate", "Remote Pressure Gauge State Pressure (PSI)", "Wear SCBA Mask", "Inhalation test", "Exhalation Test", "Helmets Chain straps Ear Flap", "Gloves", "Pulled the correct load (Flat, Triple, Minute man)", "Prior to IDLH on air", "Radio to command", "Correct pattern"]
+            },
+            {
+                id: 2, title: "Rope And Knots", limit: "2:00", limitSec: 120,
+                checks: ["Selected correct rope", "Knot tied correctly", "Safety/Dressing applied"]
+            },
+            {
+                id: 3, title: "Ladder Raise & Search", limit: "4:40", limitSec: 280,
+                checks: ["Tips are square", "Dogs are locked", "Butts are square", "Hyliard is tied", "Proper climbing angle", "Ladder is butted and ready", "Entry Division 2 Par 1", "Sound the floor", "Clear the floor", "Victim found command", "Exited structure Par 1 Plus 1"]
+            },
+            {
+                id: 4, title: "Task 4", limit: "4:40", limitSec: 280,
+                checks: ["Task performed correctly", "Safety protocols followed"]
+            },
+            {
+                id: 5, title: "Task 5", limit: "4:40", limitSec: 280,
+                checks: ["Task performed correctly", "Safety protocols followed"]
+            }
+        ];
+
+        // --- STATE ---
+        window.evaluations = [];
+        window.editingRecordId = null;
+        window.currentEval = {
+            candidateName: "",
+            classNumber: "",
+            evalDate: new Date().toISOString().split('T')[0],
+            instructorName: "",
+            candidateID: "",
+            tasks: []
+        };
+        window.timerIntervals = {};
+        window.activeTab = 'dashboard';
+
+        // Attach functions to window for onclick handlers
+        window.switchTab = switchTab;
+        window.prepareNewEvaluation = prepareNewEvaluation;
+        window.toggleTimer = toggleTimer;
+        window.resetTask = resetTask;
+        window.setManualGrade = setManualGrade;
+        window.toggleCheck = toggleCheck;
+        window.saveEvaluation = saveEvaluation;
+        window.editEval = editEval;
+        window.deleteEval = deleteEval;
+        window.exportCSV = exportCSV;
+        window.renderDatabase = renderDatabase;
+
+        // --- AUTHENTICATION ---
+        async function initAuth() {
+            if (initialAuthToken) {
+                await signInWithCustomToken(auth, initialAuthToken);
+            } else {
+                await signInAnonymously(auth);
+            }
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                document.getElementById('sync-indicator').classList.remove('bg-amber-500');
+                document.getElementById('sync-indicator').classList.add('bg-green-500');
+                document.getElementById('sync-status').innerText = 'Cloud Connected';
+                setupRealtimeListener();
+            } else {
+                document.getElementById('sync-status').innerText = 'Offline';
+            }
+        });
+
+        // --- DATABASE SYNC ---
+        function setupRealtimeListener() {
+            const evalsRef = collection(db, 'artifacts', appId, 'public', 'data', 'evaluations');
+            onSnapshot(evalsRef, (snapshot) => {
+                window.evaluations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                // Re-render based on current active tab
+                if (window.activeTab === 'dashboard') renderDashboard();
+                if (window.activeTab === 'database') renderDatabase();
+                if (window.activeTab === 'analytics') renderAnalytics();
+            }, (error) => {
+                console.error("Firestore Error:", error);
+            });
+        }
+
+        // --- INITIALIZATION ---
+        function initCurrentEval() {
+            window.editingRecordId = null;
+            window.currentEval = {
+                candidateName: "",
+                classNumber: "",
+                evalDate: new Date().toISOString().split('T')[0],
+                instructorName: localStorage.getItem('spc_instructor') || "",
+                candidateID: "",
+                tasks: TASK_TEMPLATES.map(t => ({
+                    ...t,
+                    time: 0,
+                    isRunning: false,
+                    manualStatus: null,
+                    patternOption: "1",
+                    bottlePsi: "",
+                    remotePsi: "",
+                    knotName: "",
+                    performanceName: t.id >= 4 ? "" : t.title,
+                    feedback: "",
+                    checklistStates: t.checks.reduce((acc, c) => ({ ...acc, [c]: false }), {})
+                }))
+            };
+            
+            updateFormUI();
+        }
+
+        function updateFormUI() {
+            document.getElementById('form-name').value = window.currentEval.candidateName;
+            document.getElementById('form-class').value = window.currentEval.classNumber;
+            document.getElementById('form-date').value = window.currentEval.evalDate;
+            document.getElementById('form-instructor').value = window.currentEval.instructorName;
+            document.getElementById('form-id').value = window.currentEval.candidateID;
+            
+            const indicator = document.getElementById('edit-indicator');
+            const saveTitle = document.getElementById('save-title');
+            const saveBtnText = document.getElementById('save-button-text');
+            
+            if (window.editingRecordId) {
+                indicator.classList.remove('hidden');
+                saveTitle.innerText = "Update Shared Record";
+                saveBtnText.innerText = "SAVE CORRECTIONS";
+            } else {
+                indicator.classList.add('hidden');
+                saveTitle.innerText = "Submit Shared Record";
+                saveBtnText.innerText = "SAVE PERFORMANCE RECORD";
+            }
+
+            renderEvaluationTasks();
+        }
+
+        // --- UI ROUTING ---
+        function switchTab(tabId) {
+            window.activeTab = tabId;
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            
+            document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
+            document.getElementById(`nav-${tabId}`).classList.add('active');
+            
+            const titles = { dashboard: 'Academy Overview', evaluation: 'Skill Performance', database: 'Record Search', analytics: 'Detailed Analytics' };
+            document.getElementById('page-title').innerText = titles[tabId];
+
+            if (tabId === 'dashboard') renderDashboard();
+            if (tabId === 'database') renderDatabase();
+            if (tabId === 'analytics') renderAnalytics();
+        }
+
+        function prepareNewEvaluation() {
+            initCurrentEval();
+            switchTab('evaluation');
+        }
+
+        // --- FORM LOGIC ---
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function toggleTimer(idx) {
+            const task = window.currentEval.tasks[idx];
+            if (task.isRunning) {
+                clearInterval(window.timerIntervals[idx]);
+                task.isRunning = false;
+            } else {
+                task.isRunning = true;
+                window.timerIntervals[idx] = setInterval(() => {
+                    task.time++;
+                    updateTimerDisplay(idx);
+                }, 1000);
+            }
+            renderEvaluationTasks();
+        }
+
+        function updateTimerDisplay(idx) {
+            const el = document.getElementById(`timer-val-${idx}`);
+            const container = document.getElementById(`timer-container-${idx}`);
+            const task = window.currentEval.tasks[idx];
+            if (el) el.innerText = formatTime(task.time);
+            if (container && task.time > task.limitSec) {
+                container.classList.add('text-red-600', 'bg-red-50', 'border-red-200');
+            }
+        }
+
+        function resetTask(idx) {
+            clearInterval(window.timerIntervals[idx]);
+            const template = TASK_TEMPLATES[idx];
+            window.currentEval.tasks[idx] = {
+                ...template,
+                time: 0,
+                isRunning: false,
+                manualStatus: null,
+                patternOption: "1",
+                bottlePsi: "",
+                remotePsi: "",
+                knotName: "",
+                performanceName: template.id >= 4 ? "" : template.title,
+                feedback: "",
+                checklistStates: template.checks.reduce((acc, c) => ({ ...acc, [c]: false }), {})
+            };
+            renderEvaluationTasks();
+        }
+
+        function setManualGrade(idx, status) {
+            window.currentEval.tasks[idx].manualStatus = status;
+            renderEvaluationTasks();
+        }
+
+        function toggleCheck(taskIdx, label) {
+            window.currentEval.tasks[taskIdx].checklistStates[label] = !window.currentEval.tasks[taskIdx].checklistStates[label];
+            renderEvaluationTasks();
+        }
+
+        function isJobComplete(task) {
+            return task.checks.every(label => task.checklistStates[label] === true);
+        }
+
+        async function saveEvaluation() {
+            if (!auth.currentUser) {
+                alert("Database disconnected. Please wait for reconnect.");
+                return;
+            }
+
+            window.currentEval.candidateName = document.getElementById('form-name').value;
+            window.currentEval.classNumber = document.getElementById('form-class').value;
+            window.currentEval.evalDate = document.getElementById('form-date').value;
+            window.currentEval.instructorName = document.getElementById('form-instructor').value;
+            window.currentEval.candidateID = document.getElementById('form-id').value;
+
+            if (!window.currentEval.candidateName || !window.currentEval.candidateID) {
+                alert("Candidate Name and ID are required.");
+                return;
+            }
+
+            const record = JSON.parse(JSON.stringify(window.currentEval));
+            record.finalStatus = record.tasks.every(t => t.manualStatus === 'PASS') ? 'PASS' : 'FAIL';
+            record.totalJobComplete = record.tasks.every(t => isJobComplete(t));
+            record.lastModifiedBy = auth.currentUser.uid;
+            record.updatedAt = new Date().toISOString();
+
+            try {
+                if (window.editingRecordId) {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'evaluations', window.editingRecordId);
+                    await updateDoc(docRef, record);
+                } else {
+                    const collRef = collection(db, 'artifacts', appId, 'public', 'data', 'evaluations');
+                    await addDoc(collRef, record);
+                }
+                
+                initCurrentEval();
+                switchTab('database');
+            } catch (e) {
+                alert("Save failed: " + e.message);
+            }
+        }
+
+        function editEval(id) {
+            const record = window.evaluations.find(e => e.id === id);
+            if (!record) return;
+            
+            window.currentEval = JSON.parse(JSON.stringify(record));
+            window.editingRecordId = id;
+            
+            switchTab('evaluation');
+            updateFormUI();
+        }
+
+        // --- RENDERERS ---
+        function renderEvaluationTasks() {
+            const container = document.getElementById('evaluation-tasks');
+            container.innerHTML = window.currentEval.tasks.map((task, idx) => `
+                <div class="task-card bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 fade-in ${task.manualStatus ? (task.manualStatus === 'PASS' ? 'ring-4 ring-green-400' : 'ring-4 ring-red-400') : ''}">
+                    <div class="p-6 bg-slate-50 flex flex-col md:flex-row justify-between items-center gap-6 border-b border-slate-100">
+                        <div class="flex items-center gap-4">
+                            <span class="w-12 h-12 rounded-2xl bg-red-700 text-white flex items-center justify-center font-black text-xl">${task.id}</span>
+                            <div>
+                                ${task.id >= 4 ? `
+                                    <input type="text" value="${task.performanceName}" 
+                                        oninput="window.currentEval.tasks[${idx}].performanceName = this.value"
+                                        placeholder="Enter Task Name..." 
+                                        class="font-black text-xl bg-transparent border-b-2 border-slate-200 outline-none w-64">
+                                ` : `
+                                    <h3 class="font-black text-xl text-slate-800 uppercase">${task.title}</h3>
+                                `}
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">LIMIT: ${task.limit}</span>
+                                    <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${isJobComplete(task) ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">
+                                        ${isJobComplete(task) ? 'Job Complete' : 'Incomplete'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <div id="timer-container-${idx}" class="px-6 py-3 rounded-2xl font-mono text-3xl font-black border-2 transition-all ${task.time > task.limitSec ? 'text-red-600 border-red-100 bg-red-50' : 'text-slate-800 border-slate-100 bg-white shadow-inner'}">
+                                <span id="timer-val-${idx}">${formatTime(task.time)}</span>
+                            </div>
+                            <button onclick="toggleTimer(${idx})" class="px-6 py-3 rounded-2xl font-black text-xs uppercase shadow-lg ${task.isRunning ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'}">
+                                ${task.isRunning ? 'PAUSE' : 'START'}
+                            </button>
+                            <button onclick="resetTask(${idx})" class="p-3 rounded-2xl bg-slate-100 text-slate-400 hover:text-red-600 transition-colors"><i class="fa-solid fa-rotate-right"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="p-8 space-y-8">
+                        ${task.id === 1 ? `
+                            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 inline-block">
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Hose Pull Pattern Selection</label>
+                                <select onchange="window.currentEval.tasks[${idx}].patternOption = this.value" class="p-2 border-2 border-slate-200 rounded-lg font-bold text-sm bg-white">
+                                    <option value="1" ${task.patternOption === '1' ? 'selected' : ''}>1</option>
+                                    <option value="2" ${task.patternOption === '2' ? 'selected' : ''}>2</option>
+                                    <option value="3" ${task.patternOption === '3' ? 'selected' : ''}>3</option>
+                                </select>
+                            </div>
+                        ` : ''}
+
+                        ${task.id === 2 ? `
+                            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 inline-block w-full sm:w-auto">
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Knot Name Being Tested</label>
+                                <input type="text" value="${task.knotName}" 
+                                    oninput="window.currentEval.tasks[${idx}].knotName = this.value"
+                                    placeholder="Enter Knot Name..." 
+                                    class="w-full sm:w-64 p-2 border-2 border-slate-200 rounded-lg font-bold text-sm outline-none focus:border-red-500 bg-white shadow-inner">
+                            </div>
+                        ` : ''}
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            ${task.checks.map(c => `
+                                <label onclick="toggleCheck(${idx}, '${c}')" class="flex items-start gap-4 p-4 rounded-2xl border transition-all cursor-pointer group ${task.checklistStates[c] ? 'bg-green-50 border-green-200' : 'bg-white border-slate-100 hover:bg-slate-50'}">
+                                    <input type="checkbox" ${task.checklistStates[c] ? 'checked' : ''} class="mt-1 w-5 h-5 rounded border-slate-300 text-red-600 pointer-events-none">
+                                    <div class="flex-1">
+                                        <span class="text-sm font-bold ${task.checklistStates[c] ? 'text-green-800' : 'text-slate-600'}">${c}</span>
+                                        ${(c.includes('Bottle Psi') || c.includes('Remote Pressure')) ? `
+                                            <div class="mt-2" onclick="event.stopPropagation()">
+                                                <input type="number" 
+                                                    value="${c.includes('Bottle Psi') ? task.bottlePsi : task.remotePsi}"
+                                                    oninput="window.currentEval.tasks[${idx}][${c.includes('Bottle Psi') ? "'bottlePsi'" : "'remotePsi'"}] = this.value"
+                                                    placeholder="PSI" 
+                                                    class="w-24 p-1 text-xs border border-slate-200 rounded-lg font-bold bg-white">
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </label>
+                            `).join('')}
+                        </div>
+
+                        <div class="pt-6 border-t border-slate-100">
+                            <textarea oninput="window.currentEval.tasks[${idx}].feedback = this.value" 
+                                class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl min-h-[80px] text-sm font-medium focus:bg-white outline-none" 
+                                placeholder="Instructor notes...">${task.feedback}</textarea>
+                            <div class="flex flex-col md:flex-row justify-between items-center bg-slate-50 p-4 rounded-2xl mt-6 gap-4">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Final Grade:</span>
+                                    <button onclick="setManualGrade(${idx}, 'PASS')" class="px-8 py-2 rounded-xl font-black text-xs uppercase transition-all ${task.manualStatus === 'PASS' ? 'bg-green-600 text-white shadow-lg' : 'bg-white border text-slate-400 shadow-sm'}">Pass</button>
+                                    <button onclick="setManualGrade(${idx}, 'FAIL')" class="px-8 py-2 rounded-xl font-black text-xs uppercase transition-all ${task.manualStatus === 'FAIL' ? 'bg-red-600 text-white shadow-lg' : 'bg-white border text-slate-400 shadow-sm'}">Fail</button>
+                                </div>
+                                ${task.manualStatus ? `<div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">RECORDED: ${task.manualStatus} @ ${formatTime(task.time)}</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderDashboard() {
+            document.getElementById('stat-total').innerText = window.evaluations.length;
+            
+            const passes = window.evaluations.filter(e => e.finalStatus === 'PASS').length;
+            const passRate = window.evaluations.length > 0 ? Math.round((passes / window.evaluations.length) * 100) : 0;
+            document.getElementById('stat-pass-rate').innerText = `${passRate}%`;
+
+            const completes = window.evaluations.filter(e => e.totalJobComplete).length;
+            const completeRate = window.evaluations.length > 0 ? Math.round((completes / window.evaluations.length) * 100) : 0;
+            document.getElementById('stat-job-complete').innerText = `${completeRate}%`;
+
+            const list = document.getElementById('recent-evals-list');
+            list.innerHTML = window.evaluations.slice(0, 5).map(e => {
+                const allChecks = e.tasks.flatMap(t => Object.values(t.checklistStates));
+                const checkedCount = allChecks.filter(v => v).length;
+                const totalCount = allChecks.length;
+                const pct = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0;
+
+                return `
+                    <tr>
+                        <td class="px-6 py-4">
+                            <div class="font-bold text-slate-800">${e.candidateName}</div>
+                            <div class="text-[10px] text-slate-400 uppercase font-black">${e.instructorName}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${e.finalStatus === 'PASS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${e.finalStatus}</span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-2">
+                                <div class="w-24 bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                    <div class="bg-blue-500 h-full" style="width: ${pct}%"></div>
+                                </div>
+                                <span class="text-[10px] font-black text-slate-400">${pct}%</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            ${e.totalJobComplete ? 
+                                '<span class="text-[10px] font-black text-green-600 uppercase"><i class="fa-solid fa-check mr-1"></i> COMPLETE</span>' : 
+                                '<span class="text-[10px] font-black text-amber-500 uppercase"><i class="fa-solid fa-triangle-exclamation mr-1"></i> INCOMPLETE</span>'}
+                        </td>
+                    </tr>
+                `;
+            }).join('') || '<tr><td colspan="4" class="p-12 text-center text-slate-400 italic">No global records found.</td></tr>';
+        }
+
+        function renderDatabase() {
+            const queryVal = document.getElementById('db-search').value.toLowerCase();
+            const list = document.getElementById('db-list');
+            
+            const filtered = window.evaluations.filter(e => 
+                (e.candidateName || '').toLowerCase().includes(queryVal) || 
+                (e.candidateID || '').toLowerCase().includes(queryVal) || 
+                (e.instructorName || '').toLowerCase().includes(queryVal)
+            );
+
+            list.innerHTML = filtered.map(e => {
+                const totalChecks = e.tasks.flatMap(t => Object.values(t.checklistStates));
+                const checkedCount = totalChecks.filter(v => v).length;
+                const totalCount = totalChecks.length;
+                const pct = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0;
+
+                return `
+                    <tr class="hover:bg-slate-50 transition-all group">
+                        <td class="px-6 py-4">
+                            <div class="font-black text-slate-900">${e.candidateName}</div>
+                            <div class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">${e.evalDate}</div>
+                        </td>
+                        <td class="px-6 py-4 text-sm font-bold text-slate-500">${e.instructorName}</td>
+                        <td class="px-6 py-4">
+                            <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${e.finalStatus === 'PASS' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}">${e.finalStatus}</span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex flex-col gap-1">
+                                <span class="text-[10px] font-black uppercase ${e.totalJobComplete ? 'text-green-600' : 'text-amber-500'}">${e.totalJobComplete ? 'Complete' : 'Incomplete'}</span>
+                                <div class="w-32 bg-slate-100 h-1 rounded-full">
+                                    <div class="bg-slate-400 h-full" style="width: ${pct}%"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onclick="editEval('${e.id}')" class="text-slate-400 hover:text-blue-600 transition-colors p-2" title="Edit">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button onclick="deleteEval('${e.id}')" class="text-slate-400 hover:text-red-600 transition-colors p-2" title="Delete">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('') || '<tr><td colspan="5" class="p-12 text-center text-slate-400 italic">No search results in shared database.</td></tr>';
+        }
+
+        function renderAnalytics() {
+            const container = document.getElementById('analytics-grid');
+            if (window.evaluations.length === 0) {
+                container.innerHTML = '<div class="col-span-full py-20 text-center text-slate-400 italic">Awaiting global data sync...</div>';
+                return;
+            }
+
+            container.innerHTML = TASK_TEMPLATES.map(tmpl => {
+                const taskEvals = window.evaluations.flatMap(e => (e.tasks || []).filter(t => t.id === tmpl.id));
+                const total = taskEvals.length;
+                const passes = taskEvals.filter(t => t.manualStatus === 'PASS').length;
+                const completes = taskEvals.filter(t => isJobComplete(t)).length;
+                const totalSeconds = taskEvals.reduce((acc, t) => acc + (t.time || 0), 0);
+                const avgTime = total > 0 ? Math.round(totalSeconds / total) : 0;
+                
+                const passRate = total > 0 ? Math.round((passes / total) * 100) : 0;
+                const completeRate = total > 0 ? Math.round((completes / total) * 100) : 0;
+
+                return `
+                    <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 fade-in">
+                        <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">${tmpl.title}</h4>
+                        <div class="flex justify-between items-end">
+                            <div>
+                                <p class="text-2xl font-black text-slate-900 leading-none">${passRate}%</p>
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Pass Grade</span>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-2xl font-black text-blue-600 leading-none">${completeRate}%</p>
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Job Finish</span>
+                            </div>
+                        </div>
+                        <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-red-600 h-full" style="width: ${passRate}%"></div>
+                        </div>
+                        <p class="text-xs font-bold text-slate-500 uppercase tracking-tight">AVG TIME: ${formatTime(avgTime)}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function deleteEval(id) {
+            if (confirm("Are you sure you want to delete this shared record? It will be removed for all instructors.")) {
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'evaluations', id);
+                    await deleteDoc(docRef);
+                } catch (e) {
+                    alert("Delete failed: " + e.message);
+                }
+            }
+        }
+
+        function exportCSV() {
+            if (window.evaluations.length === 0) return;
+            const headers = ["Candidate", "ID", "Class", "Date", "Instructor", "Task", "Time", "Grade", "Job Status", "Pattern Detail", "Knot Detail", "Notes"];
+            const rows = window.evaluations.flatMap(e => e.tasks.map(t => {
+                const patternDetail = t.id === 1 ? `Pattern ${t.patternOption}` : '';
+                const knotDetail = t.id === 2 ? t.knotName : '';
+                
+                const cleanName = (e.candidateName || "").replace(/,/g, '');
+                const cleanInstructor = (e.instructorName || "").replace(/,/g, '');
+                const cleanFeedback = (t.feedback || "").replace(/,/g, ' ').replace(/\n/g, ' ');
+
+                return [
+                    cleanName, e.candidateID, e.classNumber, e.evalDate, 
+                    cleanInstructor, t.performanceName || t.title, 
+                    formatTime(t.time), t.manualStatus || 'N/A', 
+                    isJobComplete(t) ? 'COMPLETE' : 'INCOMPLETE', 
+                    patternDetail, knotDetail, cleanFeedback
+                ];
+            }));
+
+            let csv = headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `SPC_Fire_Academy_Shared_Data_${new Date().toISOString().split('T')[0]}.csv`);
+            a.click();
+        }
+
+        // Initialize App
+        async function bootstrap() {
+            await initAuth();
+            const instructor = localStorage.getItem('spc_instructor');
+            if (instructor) {
+                document.getElementById('current-instructor-id').value = instructor;
+            }
+            initCurrentEval();
+        }
+
+        bootstrap();
+    </script>
+</body>
+</html>
