@@ -90,7 +90,7 @@
                 <div class="overflow-x-auto">
                     <table class="w-full text-left">
                         <thead class="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase">
-                            <tr><th class="px-6 py-4">Candidate</th><th class="px-6 py-4">Grade</th><th class="px-6 py-4">Skills</th><th class="px-6 py-4">Job Status</th></tr>
+                            <tr><th class="px-6 py-4">Candidate</th><th class="px-6 py-4">Grade</th><th class="px-6 py-4">Instructor</th><th class="px-6 py-4">Job Status</th></tr>
                         </thead>
                         <tbody id="dashboard-feed" class="divide-y divide-slate-100"></tbody>
                     </table>
@@ -117,7 +117,7 @@
             <footer class="bg-slate-900 p-8 rounded-3xl shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6 no-print">
                 <div class="text-white"><h4 id="footer-save-title" class="font-black text-xl uppercase tracking-tighter">Submit Record</h4><p class="text-slate-400 text-xs font-medium uppercase tracking-widest">Synchronizing to shared database...</p></div>
                 <button onclick="saveEvaluation()" class="w-full md:w-auto px-12 py-4 bg-red-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-red-700 shadow-xl flex items-center justify-center gap-3">
-                    <i class="fa-solid fa-floppy-disk"></i> <span id="save-btn-text">SAVE TO CLOUD</span>
+                    <i class="fa-solid fa-floppy-disk"></i> <span id="save-button-text">SAVE TO CLOUD</span>
                 </button>
             </footer>
         </section>
@@ -146,13 +146,23 @@
 
     <script type="module">
         import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // UI Utility for connection status
+        function updateSyncStatus(status, colorClass = 'bg-amber-500') {
+            const indicator = document.getElementById('sync-indicator');
+            const statusText = document.getElementById('sync-status');
+            if (indicator && statusText) {
+                indicator.className = `w-2 h-2 rounded-full ${colorClass}`;
+                statusText.innerText = status;
+            }
+        }
 
         // ==========================================
         // 1. CONFIGURATION
         // ==========================================
-        const firebaseConfig = {
+        const firebaseConfigOverride = {
             apiKey: "AIzaSyC5E3-jeyt9CMUeNnty_17gv0oiyJQc7GE",
             authDomain: "spc-3a27a.firebaseapp.com",
             projectId: "spc-3a27a",
@@ -161,7 +171,8 @@
             appId: "1:999897428654:web:00621949061e26d451733f",
             measurementId: "G-GZMQ0G4NKT"
         };
-        
+
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfigOverride;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'spc-fire-academy';
         let db, auth;
 
@@ -188,7 +199,10 @@
         // 3. CORE LOGIC
         // ==========================================
         const formatTime = s => `${Math.floor(s/60)}:${(s%60).toString().padStart(2, '0')}`;
-        const isJobDone = t => t.checks.every(c => t.checklistStates[c]);
+        const isJobDone = t => {
+            if (!t || !t.checks || !t.checklistStates) return false;
+            return t.checks.every(c => t.checklistStates[c]);
+        };
 
         window.switchTab = (tab) => {
             window.state.activeTab = tab;
@@ -209,8 +223,9 @@
                 instructor: localStorage.getItem('spc_instructor') || "",
                 id: "",
                 tasks: TASKS.map(t => ({
-                    ...t, time: 0, isRunning: false, manualStatus: null, pattern: "1", 
-                    bottlePsi: "", remotePsi: "", knot: "", feedback: "",
+                    ...t, time: 0, isRunning: false, manualStatus: null, patternOption: "1", 
+                    bottlePsi: "", remotePsi: "", knotName: "", feedback: "",
+                    performanceName: t.id >= 4 ? "" : t.title,
                     checklistStates: t.checks.reduce((acc, c) => ({...acc, [c]: false}), {})
                 }))
             };
@@ -243,15 +258,21 @@
             const template = TASKS[idx];
             window.state.current.tasks[idx] = {
                 ...template,
-                time: 0, isRunning: false, manualStatus: null, pattern: "1", 
-                bottlePsi: "", remotePsi: "", knot: "", feedback: "",
+                time: 0, isRunning: false, manualStatus: null, patternOption: "1", 
+                bottlePsi: "", remotePsi: "", knotName: "", feedback: "",
+                performanceName: template.id >= 4 ? "" : template.title,
                 checklistStates: template.checks.reduce((acc, c) => ({...acc, [c]: false}), {})
             };
             renderTasks();
         };
 
+        window.toggleCheck = (taskIdx, label) => {
+            window.state.current.tasks[taskIdx].checklistStates[label] = !window.state.current.tasks[taskIdx].checklistStates[label];
+            renderTasks();
+        };
+
         window.saveEvaluation = async () => {
-            if (!auth?.currentUser) return alert("Database not connected. Check your Firebase console settings.");
+            if (!auth?.currentUser) return alert("Database not connected.");
             
             const c = window.state.current;
             c.name = document.getElementById('eval-name').value;
@@ -268,11 +289,10 @@
             record.updatedAt = new Date().toISOString();
 
             try {
-                const path = collection(db, 'artifacts', appId, 'public', 'data', 'evaluations');
                 if (window.state.editingId) {
                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'evaluations', window.state.editingId), record);
                 } else {
-                    await addDoc(path, record);
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'evaluations'), record);
                 }
                 prepareNewEvaluation();
                 switchTab('database');
@@ -319,7 +339,7 @@
                         <div class="flex items-center gap-4">
                             <span class="w-12 h-12 rounded-2xl bg-red-700 text-white flex items-center justify-center font-black text-xl">${task.id}</span>
                             <div>
-                                <h3 class="font-black text-xl text-slate-800 uppercase">${task.title}</h3>
+                                ${task.id >= 4 ? `<input type="text" value="${task.performanceName || ''}" oninput="window.state.current.tasks[${idx}].performanceName = this.value" placeholder="Enter Task Name..." class="font-black text-xl bg-transparent border-b-2 border-slate-200 outline-none w-64 text-slate-800">` : `<h3 class="font-black text-xl text-slate-800 uppercase">${task.title}</h3>`}
                                 <div class="flex items-center gap-2 mt-1">
                                     <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">LIMIT: ${task.limit}</span>
                                     <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${isJobDone(task) ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">${isJobDone(task) ? 'Complete' : 'Incomplete'}</span>
@@ -335,19 +355,13 @@
                     <div class="p-8 space-y-8">
                         ${task.id === 1 ? `
                             <div class="flex flex-wrap gap-4 p-4 bg-slate-50 rounded-2xl border">
-                                <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase block">Pattern</label><select onchange="state.current.tasks[${idx}].pattern = this.value" class="p-2 border-2 rounded-lg font-bold text-sm bg-white"><option value="1" ${task.pattern==='1'?'selected':''}>1</option><option value="2" ${task.pattern==='2'?'selected':''}>2</option><option value="3" ${task.pattern==='3'?'selected':''}>3</option></select></div>
+                                <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase block">Pattern</label><select onchange="state.current.tasks[${idx}].patternOption = this.value" class="p-2 border-2 rounded-lg font-bold text-sm bg-white"><option value="1" ${task.patternOption==='1'?'selected':''}>1</option><option value="2" ${task.patternOption==='2'?'selected':''}>2</option><option value="3" ${task.patternOption==='3'?'selected':''}>3</option></select></div>
                                 <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase block">Bottle PSI</label><input type="number" value="${task.bottlePsi||''}" oninput="state.current.tasks[${idx}].bottlePsi = this.value" class="p-2 border-2 rounded-lg font-bold text-sm bg-white w-24"></div>
                                 <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase block">Remote PSI</label><input type="number" value="${task.remotePsi||''}" oninput="state.current.tasks[${idx}].remotePsi = this.value" class="p-2 border-2 rounded-lg font-bold text-sm bg-white w-24"></div>
-                            </div>
-                        ` : ''}
-                        ${task.id === 2 ? `<div class="p-4 bg-slate-50 rounded-2xl border inline-block w-full sm:w-auto"><label class="text-[10px] font-black text-slate-400 uppercase block mb-2">Knot Tested</label><input type="text" value="${task.knot||''}" oninput="state.current.tasks[${idx}].knot = this.value" class="w-full sm:w-64 p-2 border-2 rounded-lg font-bold outline-none bg-white"></div>` : ''}
-                        
+                            </div>` : ''}
+                        ${task.id === 2 ? `<div class="p-4 bg-slate-50 rounded-2xl border inline-block w-full sm:w-auto"><label class="text-[10px] font-black text-slate-400 uppercase block mb-2">Knot Tested</label><input type="text" value="${task.knotName||''}" oninput="state.current.tasks[${idx}].knotName = this.value" class="w-full sm:w-64 p-2 border-2 rounded-lg font-bold outline-none bg-white"></div>` : ''}
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            ${task.checks.map(c => `
-                                <label class="flex items-start gap-4 p-4 rounded-2xl border cursor-pointer transition-all ${task.checklistStates[c] ? 'bg-green-50 border-green-200' : 'bg-white hover:bg-slate-50'}">
-                                    <input type="checkbox" ${task.checklistStates[c] ? 'checked' : ''} onchange="state.current.tasks[${idx}].checklistStates['${c}'] = this.checked; refreshUI();" class="mt-1 w-5 h-5 accent-red-600">
-                                    <span class="text-sm font-bold ${task.checklistStates[c] ? 'text-green-800' : 'text-slate-600'}">${c}</span>
-                                </label>`).join('')}
+                            ${task.checks.map(c => `<label onclick="toggleCheck(${idx}, '${c}')" class="flex items-start gap-4 p-4 rounded-2xl border cursor-pointer transition-all ${task.checklistStates[c] ? 'bg-green-50 border-green-200' : 'bg-white hover:bg-slate-50'}"><input type="checkbox" ${task.checklistStates[c] ? 'checked' : ''} class="mt-1 w-5 h-5 rounded border-slate-300 text-red-600 pointer-events-none"><span class="text-sm font-bold ${task.checklistStates[c] ? 'text-green-800' : 'text-slate-600'}">${c}</span></label>`).join('')}
                         </div>
                         <div class="pt-6 border-t flex flex-col md:flex-row justify-between items-center gap-4">
                             <div class="flex items-center gap-3">
@@ -375,43 +389,21 @@
                 grid.innerHTML = TASKS.map(t => {
                     const match = window.state.evals.flatMap(e => (e.tasks||[]).filter(x => x.id === t.id));
                     const rate = match.length > 0 ? Math.round((match.filter(x => x.manualStatus === 'PASS').length / match.length) * 100) : 0;
-                    return `<div class="bg-white p-6 rounded-3xl border shadow-sm space-y-4">
-                        <h4 class="text-[10px] font-black text-slate-400 uppercase">${t.title}</h4>
-                        <div class="flex justify-between items-end">
-                            <div><p class="text-2xl font-black">${rate}%</p><span class="text-[10px] font-bold text-slate-400 uppercase">Pass Rate</span></div>
-                            <div class="w-1/2 bg-slate-100 h-1.5 rounded-full overflow-hidden"><div class="bg-red-600 h-full" style="width: ${rate}%"></div></div>
-                        </div>
-                    </div>`;
+                    return `<div class="bg-white p-6 rounded-3xl border shadow-sm space-y-4"><h4 class="text-[10px] font-black text-slate-400 uppercase">${t.title}</h4><div class="flex justify-between items-end"><div><p class="text-2xl font-black">${rate}%</p><span class="text-[10px] font-bold text-slate-400 uppercase">Pass Rate</span></div><div class="w-1/2 bg-slate-100 h-1.5 rounded-full overflow-hidden"><div class="bg-red-600 h-full" style="width: ${rate}%"></div></div></div></div>`;
                 }).join('');
             }
         }
 
         window.renderDatabase = () => {
             const list = document.getElementById('full-list');
-            const q = document.getElementById('search-input').value.toLowerCase();
-            list.innerHTML = window.state.evals.filter(e => (e.candidateName||"").toLowerCase().includes(q) || (e.candidateID||"").toLowerCase().includes(q) || (e.instructor||"").toLowerCase().includes(q)).map(e => `
-                <tr class="hover:bg-slate-50 group transition-colors">
-                    <td class="px-6 py-4"><b>${e.candidateName}</b><br><span class="text-[10px] text-slate-400 uppercase font-black">${e.date}</span></td>
-                    <td class="px-6 py-4 text-sm text-slate-500 font-bold">${e.instructor}</td>
-                    <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${e.finalStatus==='PASS'?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${e.finalStatus}</span></td>
-                    <td class="px-6 py-4 text-right opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onclick="editEval('${e.id}')" class="p-2 text-blue-500 hover:bg-blue-50 rounded-lg mr-2"><i class="fa-solid fa-edit"></i></button>
-                        <button onclick="deleteEval('${e.id}')" class="p-2 text-red-500 hover:bg-red-50 rounded-lg"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                </tr>`).join('') || '<tr><td colspan="4" class="p-12 text-center text-slate-400 italic">No candidates found.</td></tr>';
+            const q = (document.getElementById('search-input').value || '').toLowerCase();
+            list.innerHTML = window.state.evals.filter(e => (e.candidateName||"").toLowerCase().includes(q) || (e.candidateID||"").toLowerCase().includes(q) || (e.instructor||"").toLowerCase().includes(q)).map(e => `<tr class="hover:bg-slate-50 group transition-colors"><td class="px-6 py-4"><b>${e.candidateName}</b><br><span class="text-[10px] text-slate-400 uppercase font-black">${e.date}</span></td><td class="px-6 py-4 text-sm text-slate-500 font-bold">${e.instructor}</td><td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${e.finalStatus==='PASS'?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${e.finalStatus}</span></td><td class="px-6 py-4 text-right opacity-0 group-hover:opacity-100 transition-opacity"><button onclick="editEval('${e.id}')" class="p-2 text-blue-500 hover:bg-blue-50 rounded-lg mr-2"><i class="fa-solid fa-edit"></i></button><button onclick="deleteEval('${e.id}')" class="p-2 text-red-500 hover:bg-red-50 rounded-lg"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('') || '<tr><td colspan="4" class="p-12 text-center text-slate-400 italic">No candidates found.</td></tr>';
         };
 
         window.exportCSV = () => {
             if (window.state.evals.length === 0) return;
-            const headers = ["Candidate", "ID", "Instructor", "Date", "Task", "Seconds", "Grade", "Status", "Details"];
-            const rows = window.state.evals.flatMap(e => (e.tasks||[]).map(t => {
-                const detail = t.id === 1 ? `PSI:${t.bottlePsi}/${t.remotePsi}` : (t.id === 2 ? t.knot : '');
-                return [
-                    e.candidateName.replace(/,/g, ''), e.candidateID, e.instructor.replace(/,/g, ''), e.date,
-                    t.title.replace(/,/g, ''), t.time, t.manualStatus || 'UNGRADED', isJobDone(t) ? 'DONE' : 'INC',
-                    detail
-                ];
-            }));
+            const headers = ["Candidate", "ID", "Instructor", "Date", "Task", "Seconds", "Grade", "Status"];
+            const rows = window.state.evals.flatMap(e => (e.tasks||[]).map(t => [(e.candidateName || "").replace(/,/g, ''), e.candidateID, (e.instructor||"").replace(/,/g, ''), e.date, (t.performanceName || t.title).replace(/,/g, ''), t.time, t.manualStatus || 'UNGRADED', isJobDone(t) ? 'DONE' : 'INC']));
             const csv = headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = "SPC_Academy_Data.csv"; a.click();
         };
@@ -419,39 +411,56 @@
         // ==========================================
         // 5. BOOTSTRAP
         // ==========================================
+        async function fetchWithRetry(fn, maxRetries = 5) {
+            let delay = 1000;
+            for (let i = 0; i < maxRetries; i++) {
+                try { return await fn(); } 
+                catch (err) {
+                    if (i === maxRetries - 1) throw err;
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
         async function start() {
             const instr = localStorage.getItem('spc_instructor');
             if (instr) document.getElementById('instructor-name-input').value = instr;
             prepareNewEvaluation();
 
             try {
-                // Reuse existing app instance if it exists
                 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
                 
-                // Sign in to allow access
-                await signInAnonymously(auth);
+                const authFn = async () => {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                };
+
+                updateSyncStatus('Authenticating...', 'bg-amber-500');
+                await fetchWithRetry(authFn);
                 
                 onAuthStateChanged(auth, user => {
                     if (user) {
-                        document.getElementById('sync-status').innerText = "Connected";
-                        document.getElementById('sync-indicator').className = "w-2 h-2 rounded-full bg-green-500";
-                        const ref = collection(db, 'artifacts', appId, 'public', 'data', 'evaluations');
-                        onSnapshot(ref, snap => {
+                        updateSyncStatus('Connected', 'bg-green-500');
+                        onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'evaluations'), snap => {
                             window.state.evals = snap.docs.map(d => ({id: d.id, ...d.data()}));
                             refreshUI();
                         }, err => { 
                             console.error("Sync Failure:", err);
-                            document.getElementById('sync-status').innerText = "Sync Error";
-                            document.getElementById('sync-indicator').className = "w-2 h-2 rounded-full bg-red-500";
+                            updateSyncStatus('Sync Error', 'bg-red-500');
                         });
                     }
                 });
             } catch (e) { 
-                console.error("Firebase Config Error:", e);
-                document.getElementById('sync-status').innerText = "Config Error"; 
-                document.getElementById('sync-indicator').className = "w-2 h-2 rounded-full bg-red-500";
+                console.error("Firebase Config/Auth Error:", e);
+                let msg = "Auth Failed";
+                if (e.code === 'auth/configuration-not-found') msg = "Enable Auth in Console";
+                updateSyncStatus(msg, 'bg-red-500');
             }
         }
 
