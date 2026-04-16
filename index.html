@@ -20,11 +20,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @media print { .no-print { display: none !important; } }
         
-        /* PDF Report Header Styling */
-        .report-header { border-bottom: 4px solid #dc2626; padding-bottom: 20px; margin-bottom: 30px; }
-        .report-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        .report-table th { background: #f8fafc; text-align: left; padding: 12px; font-size: 10px; text-transform: uppercase; color: #64748b; border-bottom: 2px solid #e2e8f0; }
-        .report-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+        #pdf-render-zone { position: absolute; left: -9999px; top: 0; width: 800px; z-index: -1; background: white; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col md:flex-row">
@@ -57,7 +53,10 @@
         </nav>
         <div class="p-4 border-t border-slate-800">
             <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Cloud Status</p>
+                <div class="flex justify-between items-center mb-1">
+                    <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Cloud Status</p>
+                    <button onclick="location.reload()" class="text-[8px] text-red-500 hover:underline">Sync</button>
+                </div>
                 <div class="flex items-center gap-2">
                     <div id="sync-indicator" class="w-2 h-2 rounded-full bg-slate-500"></div>
                     <span id="sync-status" class="text-xs font-bold text-slate-300">Connecting...</span>
@@ -104,7 +103,7 @@
             <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="p-6 border-b border-slate-100 flex justify-between items-center font-black uppercase text-xs">
                     <span class="text-slate-900">Latest Activity</span>
-                    <button onclick="switchTab('tracker')" class="text-red-600">View History</button>
+                    <button onclick="switchTab('tracker')" class="text-red-600 font-bold hover:underline">History</button>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left">
@@ -143,7 +142,7 @@
                     <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Class ID</label><input type="text" id="eval-class" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold"></div>
                     <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</label><input type="date" id="eval-date" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold"></div>
                     <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Instructor</label><input type="text" id="eval-instructor" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold"></div>
-                    <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Candidate ID (Tracking Key)</label><input type="text" id="eval-id" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold focus:border-red-600 transition-colors"></div>
+                    <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Candidate ID (Key)</label><input type="text" id="eval-id" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold focus:border-red-600 transition-colors"></div>
                 </div>
             </div>
             <div id="tasks-list" class="space-y-8"></div>
@@ -162,8 +161,8 @@
         <section id="tab-database" class="tab-content fade-in space-y-6">
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
                 <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div class="relative w-full md:w-96"><i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i><input type="text" id="db-search" oninput="renderDatabase()" placeholder="Filter cloud logs..." class="w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold"></div>
-                    <button onclick="exportCSV()" class="bg-slate-900 text-white px-6 py-3 rounded-xl font-black text-xs uppercase flex items-center gap-2"><i class="fa-solid fa-file-csv"></i> EXPORT CSV</button>
+                    <div class="relative w-full md:w-96"><i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i><input type="text" id="db-search" oninput="renderDatabase()" placeholder="Filter logs..." class="w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold"></div>
+                    <button onclick="exportCSV()" class="bg-slate-900 text-white px-6 py-3 rounded-xl font-black text-xs uppercase flex items-center gap-2 hover:bg-slate-800 transition-colors"><i class="fa-solid fa-file-csv"></i> EXPORT CSV</button>
                 </div>
             </div>
             <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
@@ -176,21 +175,20 @@
             </div>
         </section>
 
-        <!-- STATS/ANALYTICS -->
+        <!-- STATS -->
         <section id="tab-analytics" class="tab-content fade-in space-y-8">
             <div id="analytics-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"></div>
         </section>
     </main>
 
-    <!-- Hidden Template for PDF -->
-    <div id="pdf-report-container" class="hidden"></div>
+    <div id="pdf-render-zone"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // CONFIG
+        // APP TASKS CONFIG
         const TASKS = [
             { id: 1, title: "PPE - SCBA - Hose Pull Pattern", limit: "4:40", limitSec: 280, checks: ["Morning Checks: Bottle Psi Recorded", "Viber alert Activate", "Pass Device Activate", "Remote Pressure Gauge State Pressure (PSI)", "Wear SCBA Mask", "Inhalation test", "Exhalation Test", "Helmets Chain straps Ear Flap", "Gloves", "Pulled the correct load (Flat, Triple, Minute man)", "Prior to IDLH on air", "Radio to command", "Correct pattern"] },
             { id: 2, title: "Rope And Knots", limit: "2:00", limitSec: 120, checks: ["Selected correct rope", "Knot tied correctly", "Safety/Dressing applied"] },
@@ -210,18 +208,18 @@
             auth: null
         };
 
+        // FIREBASE INITIALIZATION
         const firebaseConfig = JSON.parse(__firebase_config);
         const app = initializeApp(firebaseConfig);
         window.state.auth = getAuth(app);
         window.state.db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'spc-fire-academy';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'spc-fire-tracker';
 
-        // Core UI Helpers
         const setSyncStatus = (status, colorClass) => {
-            const indicator = document.getElementById('sync-indicator');
-            const statusText = document.getElementById('sync-status');
-            if(indicator) indicator.className = `w-2 h-2 rounded-full ${colorClass}`;
-            if(statusText) statusText.innerText = status;
+            const ind = document.getElementById('sync-indicator');
+            const txt = document.getElementById('sync-status');
+            if(ind) ind.className = `w-2 h-2 rounded-full ${colorClass}`;
+            if(txt) txt.innerText = status;
         };
 
         const initAuth = async () => {
@@ -231,8 +229,8 @@
                 } else {
                     await signInAnonymously(window.state.auth);
                 }
-            } catch (error) {
-                console.error("Auth Error:", error);
+            } catch (err) {
+                console.error("Auth Fail", err);
                 setSyncStatus("Offline", "bg-red-500");
             }
         };
@@ -249,30 +247,29 @@
 
         const setupDataListener = () => {
             if (!window.state.user) return;
-            // RULE 1: STRICT PATH
             const q = collection(window.state.db, 'artifacts', appId, 'public', 'data', 'evaluations');
-            onSnapshot(q, (snapshot) => {
-                const cloudEvals = snapshot.docs.map(doc => ({ ...doc.data(), internalId: doc.id }));
+            onSnapshot(q, (snap) => {
+                const cloudEvals = snap.docs.map(doc => ({ ...doc.data(), internalId: doc.id }));
                 window.state.evals = cloudEvals.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
                 window.refreshUI();
-            }, (error) => {
-                console.error("Firestore Listen Error:", error);
-                setSyncStatus("Permission Error", "bg-amber-500");
+            }, (err) => {
+                console.error("Firestore Error", err);
+                setSyncStatus("Sync Error", "bg-amber-500");
             });
         };
 
         const formatTime = s => `${Math.floor(s/60)}:${(s%60).toString().padStart(2, '0')}`;
 
         window.saveEvaluation = async () => {
-            if (!window.state.user) return alert("System is offline. Please wait for connection.");
-            
+            if (!window.state.user) return alert("System not connected.");
             const nameEl = document.getElementById('eval-name');
             const idEl = document.getElementById('eval-id');
             const saveBtn = document.getElementById('save-btn');
             
-            if (!nameEl.value || !idEl.value) return alert("Name and Candidate ID are required.");
+            if (!nameEl.value || !idEl.value) return alert("Candidate Name and ID are required.");
 
             saveBtn.disabled = true;
+            const original = saveBtn.innerHTML;
             saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> SAVING...';
 
             const record = {
@@ -290,29 +287,21 @@
             record.internalId = docId;
 
             try {
-                // RULE 1: STRICT PATH
-                const docRef = doc(window.state.db, 'artifacts', appId, 'public', 'data', 'evaluations', docId);
-                await setDoc(docRef, record);
+                await setDoc(doc(window.state.db, 'artifacts', appId, 'public', 'data', 'evaluations', docId), record);
                 window.prepareNewEvaluation();
                 window.switchTab('dashboard');
-            } catch (err) { 
-                alert("Cloud Save Failed: " + err.message); 
-            } finally {
-                saveBtn.disabled = false;
-                saveBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> SAVE TO CLOUD';
+            } catch (err) { alert("Save Failed: " + err.message); }
+            finally { 
+                saveBtn.disabled = false; 
+                saveBtn.innerHTML = original;
             }
         };
 
         window.deleteEval = async (id) => {
-            if (!confirm("Are you sure you want to delete this record permanently?")) return;
-            try {
+            if (confirm("Delete this cloud record permanently?")) {
                 await deleteDoc(doc(window.state.db, 'artifacts', appId, 'public', 'data', 'evaluations', id));
-            } catch (err) {
-                alert("Delete Failed: " + err.message);
             }
         };
-
-        // --- UI RENDERING & LOGIC ---
 
         window.switchTab = (tab) => {
             window.state.activeTab = tab;
@@ -321,15 +310,6 @@
             document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
             document.getElementById(`nav-${tab}`).classList.add('active');
             window.refreshUI();
-        };
-
-        window.editEval = (id) => {
-            const record = window.state.evals.find(e => e.internalId === id);
-            if (!record) return;
-            window.state.current = JSON.parse(JSON.stringify(record));
-            window.state.editingId = id;
-            window.switchTab('evaluation');
-            window.updateFormInputs();
         };
 
         window.refreshUI = () => {
@@ -352,9 +332,9 @@
                         <td class="px-6 py-4"><b>${e.name}</b><br><span class="text-[10px] text-slate-400 font-bold uppercase">${e.id}</span></td>
                         <td class="px-6 py-4 uppercase font-black text-[10px] ${e.finalStatus === 'PASS' ? 'text-green-600' : 'text-red-600'}">${e.finalStatus}</td>
                         <td class="px-6 py-4 text-xs font-bold text-slate-500">${e.date}</td>
-                        <td class="px-6 py-4"><button onclick="viewHistory('${e.id}')" class="text-red-600 font-black text-[10px] uppercase">View History</button></td>
+                        <td class="px-6 py-4"><button onclick="viewHistory('${e.id}')" class="text-red-600 font-black text-[10px] uppercase hover:underline">View History</button></td>
                     </tr>
-                `).join('') || '<tr><td colspan="4" class="p-8 text-center text-slate-400 italic">No activity yet.</td></tr>';
+                `).join('') || '<tr><td colspan="4" class="p-8 text-center text-slate-400 italic">No cloud activity yet.</td></tr>';
             }
 
             if (window.state.activeTab === 'database') window.renderDatabase();
@@ -374,7 +354,6 @@
             if (!q) { container.innerHTML = ""; return; }
             
             const history = window.state.evals.filter(e => e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q));
-            
             const grouped = {};
             history.forEach(e => {
                 if (!grouped[e.id]) grouped[e.id] = { name: e.name, id: e.id, attempts: [] };
@@ -382,10 +361,10 @@
             });
 
             container.innerHTML = Object.values(grouped).map(candidate => `
-                <div class="space-y-6">
+                <div class="space-y-6 fade-in">
                     <div class="flex items-center gap-4 bg-slate-900 p-6 rounded-3xl text-white shadow-xl">
                         <div class="w-16 h-16 rounded-2xl bg-red-600 flex items-center justify-center font-black text-2xl">${candidate.name[0]}</div>
-                        <div><h2 class="text-2xl font-black uppercase tracking-tighter">${candidate.name}</h2><p class="text-slate-400 font-bold text-xs uppercase tracking-widest">Candidate ID: ${candidate.id}</p></div>
+                        <div><h2 class="text-2xl font-black uppercase tracking-tighter">${candidate.name}</h2><p class="text-slate-400 font-bold text-xs uppercase tracking-widest">ID: ${candidate.id}</p></div>
                     </div>
                     <div class="grid grid-cols-1 gap-6">
                         ${candidate.attempts.map((attempt, idx) => `
@@ -404,9 +383,9 @@
                                 <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
                                     ${attempt.tasks.map(t => `
                                         <div class="p-4 rounded-2xl border ${t.manualStatus === 'PASS' ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}">
-                                            <p class="text-[8px] font-black text-slate-400 uppercase truncate">${t.performanceName || t.title}</p>
+                                            <p class="text-[8px] font-black text-slate-400 uppercase truncate">${t.title}</p>
                                             <p class="text-lg font-black">${formatTime(t.time)}</p>
-                                            <div class="flex items-center justify-between mt-1"><span class="text-[8px] font-bold uppercase ${t.manualStatus === 'PASS' ? 'text-green-600' : 'text-red-600'}">${t.manualStatus || 'NC'}</span></div>
+                                            <div class="flex items-center justify-between mt-1"><span class="text-[8px] font-bold uppercase ${t.manualStatus === 'PASS' ? 'text-green-600' : 'text-red-600'}">${t.manualStatus || 'FAIL'}</span></div>
                                         </div>
                                     `).join('')}
                                 </div>
@@ -424,11 +403,11 @@
                 const match = reconciled.flatMap(e => (e.tasks || []).filter(x => x.id === t.id));
                 const rate = match.length > 0 ? Math.round((match.filter(x => x.manualStatus === 'PASS').length / match.length) * 100) : 0;
                 return `
-                    <div class="bg-white p-6 rounded-3xl border shadow-sm space-y-4">
+                    <div class="bg-white p-6 rounded-3xl border shadow-sm space-y-4 fade-in">
                         <h4 class="text-[10px] font-black text-slate-400 uppercase">${t.title}</h4>
                         <div class="flex justify-between items-end">
-                            <div><p class="text-2xl font-black">${rate}%</p><p class="text-[9px] font-bold text-slate-400 uppercase italic">Latest Standing Pass Rate</p></div>
-                            <div class="w-1/2 bg-slate-100 h-1.5 rounded-full overflow-hidden"><div class="bg-red-600 h-full" style="width: ${rate}%"></div></div>
+                            <div><p class="text-2xl font-black">${rate}%</p><p class="text-[9px] font-bold text-slate-400 uppercase italic">Standings</p></div>
+                            <div class="w-1/2 bg-slate-100 h-1.5 rounded-full overflow-hidden"><div class="bg-red-600 h-full transition-all duration-1000" style="width: ${rate}%"></div></div>
                         </div>
                     </div>
                 `;
@@ -448,25 +427,19 @@
                         <button onclick="window.deleteEval('${e.internalId}')" class="p-2 text-red-500 hover:bg-red-50 rounded-lg"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 </tr>
-            `).join('') || '<tr><td colspan="4" class="p-12 text-center text-slate-400 italic uppercase">No logs matching search criteria.</td></tr>';
+            `).join('') || '<tr><td colspan="4" class="p-12 text-center text-slate-400 italic">No cloud logs matching criteria.</td></tr>';
         };
 
         window.exportCSV = () => {
+            if (window.state.evals.length === 0) return;
             const headers = ["Candidate", "ID", "Class", "Instructor", "Date", "Task", "Seconds", "Grade"];
             const rows = window.state.evals.flatMap(e => (e.tasks || []).map(t => [
-                (e.name || "").replace(/,/g, ''),
-                e.id,
-                e.class,
-                (e.instructor || "").replace(/,/g, ''),
-                e.date,
-                (t.performanceName || t.title).replace(/,/g, ''),
-                t.time,
-                t.manualStatus
+                `"${e.name}"`, `"${e.id}"`, `"${e.class}"`, `"${e.instructor}"`, e.date, `"${t.title}"`, t.time, t.manualStatus
             ]));
             const csv = headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
             const a = document.createElement('a');
             a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-            a.download = `SPC_Cloud_Log_${new Date().toLocaleDateString()}.csv`;
+            a.download = `SPC_Cloud_Log_${new Date().toISOString().split('T')[0]}.csv`;
             a.click();
         };
 
@@ -499,10 +472,8 @@
 
         window.toggleTimer = (idx) => {
             const task = window.state.current.tasks[idx];
-            if (task.isRunning) { 
-                clearInterval(window.state.timers[idx]); 
-                task.isRunning = false; 
-            } else { 
+            if (task.isRunning) { clearInterval(window.state.timers[idx]); task.isRunning = false; }
+            else { 
                 task.isRunning = true; 
                 window.state.timers[idx] = setInterval(() => { 
                     task.time++; 
@@ -534,7 +505,7 @@
                         </div>
                         <div class="flex items-center gap-3">
                             <div class="px-6 py-3 rounded-2xl font-mono text-3xl font-black border-2 bg-white ${task.time > task.limitSec ? 'text-red-600 border-red-100 bg-red-50' : ''}"><span id="t-val-${idx}">${formatTime(task.time)}</span></div>
-                            <button onclick="window.toggleTimer(${idx})" class="px-6 py-3 rounded-2xl font-black text-xs uppercase shadow-lg ${task.isRunning ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'}">${task.isRunning ? 'PAUSE' : 'START'}</button>
+                            <button onclick="window.toggleTimer(${idx})" class="px-6 py-3 rounded-2xl font-black text-xs uppercase shadow-lg transition-all active:scale-95 ${task.isRunning ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-blue-600 text-white hover:bg-blue-700'}">${task.isRunning ? 'PAUSE' : 'START'}</button>
                         </div>
                     </div>
                     <div class="p-8 space-y-6">
@@ -562,68 +533,73 @@
             if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Generating...';
 
             const reportHtml = `
-                <div style="padding: 40px; background: white; font-family: sans-serif; color: #1e293b;">
-                    <div style="border-bottom: 4px solid #dc2626; padding-bottom: 20px; margin-bottom: 30px;">
-                        <h1 style="font-size: 26px; font-weight: 900; margin: 0; letter-spacing: -1px;">SPC FIRE ACADEMY</h1>
-                        <p style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 2px;">Official Performance Evaluation Record</p>
-                    </div>
-                    <div style="display: flex; gap: 20px; margin-bottom: 30px;">
-                        <div style="flex: 1; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                            <p style="font-size: 8px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">Candidate Information</p>
-                            <p style="font-size: 18px; font-weight: 900; margin: 2px 0;">${attempt.name}</p>
-                            <p style="font-size: 11px;">ID: ${attempt.id} | Class: ${attempt.class}</p>
+                <div style="padding: 40px; background: white; font-family: 'Inter', sans-serif; color: #1e293b; width: 800px;">
+                    <div style="border-bottom: 5px solid #dc2626; padding-bottom: 25px; margin-bottom: 35px; display: flex; justify-content: space-between; align-items: flex-end;">
+                        <div>
+                            <h1 style="font-size: 32px; font-weight: 900; margin: 0; letter-spacing: -1.5px; color: #0f172a;">SPC FIRE ACADEMY</h1>
+                            <p style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 3px; margin: 5px 0 0 0;">Evaluation Performance Record</p>
                         </div>
-                        <div style="flex: 1; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; text-align: right;">
-                            <p style="font-size: 8px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">Evaluation Details</p>
-                            <p style="font-size: 18px; font-weight: 900; margin: 2px 0;">${attempt.date}</p>
-                            <p style="font-size: 11px;">Status: <b>${attempt.finalStatus}</b> | Instructor: ${attempt.instructor}</p>
+                        <div style="text-align: right;">
+                            <p style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Cloud Record ID: ${attempt.internalId}</p>
                         </div>
                     </div>
+                    
+                    <div style="display: flex; gap: 20px; margin-bottom: 40px;">
+                        <div style="flex: 1; background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0;">
+                            <p style="font-size: 9px; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px;">Candidate</p>
+                            <p style="font-size: 20px; font-weight: 900; margin: 0; color: #0f172a;">${attempt.name}</p>
+                            <p style="font-size: 12px; font-weight: 600; color: #64748b; margin-top: 4px;">ID: ${attempt.id} | Class: ${attempt.class}</p>
+                        </div>
+                        <div style="flex: 1; background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; text-align: right;">
+                            <p style="font-size: 9px; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px;">Session Info</p>
+                            <p style="font-size: 20px; font-weight: 900; margin: 0; color: #0f172a;">${attempt.date}</p>
+                            <p style="font-size: 12px; font-weight: 600; margin-top: 4px;">Status: <span style="color: ${attempt.finalStatus === 'PASS' ? '#16a34a' : '#dc2626'}">${attempt.finalStatus}</span> | ${attempt.instructor}</p>
+                        </div>
+                    </div>
+
                     <table style="width: 100%; border-collapse: collapse;">
                         <thead style="background: #f1f5f9;">
                             <tr>
-                                <th style="text-align: left; padding: 12px; font-size: 10px; text-transform: uppercase;">Skill/Task</th>
-                                <th style="text-align: center; padding: 12px; font-size: 10px; text-transform: uppercase;">Time</th>
-                                <th style="text-align: center; padding: 12px; font-size: 10px; text-transform: uppercase;">Limit</th>
-                                <th style="text-align: center; padding: 12px; font-size: 10px; text-transform: uppercase;">Result</th>
+                                <th style="text-align: left; padding: 16px; font-size: 11px; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; color: #475569;">Skill Task Description</th>
+                                <th style="text-align: center; padding: 16px; font-size: 11px; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; color: #475569;">Time</th>
+                                <th style="text-align: center; padding: 16px; font-size: 11px; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; color: #475569;">Limit</th>
+                                <th style="text-align: center; padding: 16px; font-size: 11px; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; color: #475569;">Result</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${attempt.tasks.map(t => `
-                                <tr style="border-bottom: 1px solid #e2e8f0;">
-                                    <td style="padding: 12px; font-size: 12px; font-weight: 700;">${t.performanceName || t.title}</td>
-                                    <td style="padding: 12px; font-size: 12px; text-align: center; font-family: monospace;">${formatTime(t.time)}</td>
-                                    <td style="padding: 12px; font-size: 12px; text-align: center; color: #64748b;">${t.limit}</td>
-                                    <td style="padding: 12px; font-size: 12px; text-align: center; font-weight: 900; color: ${t.manualStatus === 'PASS' ? '#166534' : '#b91c1c'};">${t.manualStatus}</td>
+                                <tr style="border-bottom: 1px solid #f1f5f9;">
+                                    <td style="padding: 16px; font-size: 13px; font-weight: 700; color: #1e293b;">${t.title}</td>
+                                    <td style="padding: 16px; font-size: 13px; text-align: center; font-family: monospace; font-weight: 600;">${formatTime(t.time)}</td>
+                                    <td style="padding: 16px; font-size: 13px; text-align: center; color: #94a3b8;">${t.limit}</td>
+                                    <td style="padding: 16px; font-size: 13px; text-align: center; font-weight: 900; color: ${t.manualStatus === 'PASS' ? '#16a34a' : '#dc2626'};">${t.manualStatus}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
                     </table>
-                    <div style="margin-top: 60px; display: flex; justify-content: space-between;">
-                        <div style="width: 45%; border-top: 1px solid #000; padding-top: 8px; font-size: 10px; font-weight: bold; text-transform: uppercase;">Instructor Signature</div>
-                        <div style="width: 45%; border-top: 1px solid #000; padding-top: 8px; font-size: 10px; font-weight: bold; text-transform: uppercase;">Candidate Signature</div>
+
+                    <div style="margin-top: 80px; display: flex; justify-content: space-between; gap: 40px;">
+                        <div style="flex: 1; border-top: 2px solid #0f172a; padding-top: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; color: #64748b;">Instructor Signature / Certification</div>
+                        <div style="flex: 1; border-top: 2px solid #0f172a; padding-top: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; color: #64748b;">Candidate Signature / Acknowledgement</div>
                     </div>
                 </div>
             `;
 
-            const container = document.getElementById('pdf-report-container');
+            const container = document.getElementById('pdf-render-zone');
             container.innerHTML = reportHtml;
-            container.classList.remove('hidden');
 
             const opt = {
                 margin: 0.5,
                 filename: `SPC_Record_${attempt.name.replace(/\s+/g, '_')}_${attempt.date}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2 },
+                image: { type: 'jpeg', quality: 1.0 },
+                html2canvas: { scale: 2, useCORS: true },
                 jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
             };
 
             try {
                 await html2pdf().set(opt).from(container).save();
-            } catch (err) {
-                console.error("PDF generation failed:", err);
             } finally {
-                container.classList.add('hidden');
+                container.innerHTML = "";
                 if (btn) btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Report';
             }
         };
