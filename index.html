@@ -208,12 +208,23 @@
             auth: null
         };
 
-        // FIREBASE INITIALIZATION
-        const firebaseConfig = JSON.parse(__firebase_config);
+        // FIREBASE INITIALIZATION WITH LOCAL FALLBACK
+        const firebaseConfig = (typeof __firebase_config !== 'undefined') 
+            ? JSON.parse(__firebase_config) 
+            : {
+                apiKey: "AIzaSyAwP3P8uzX3ejnzI-fj9_Z9T8LUV0jWeZQ",
+                authDomain: "fireacademy1-c8ef2.firebaseapp.com",
+                projectId: "fireacademy1-c8ef2",
+                storageBucket: "fireacademy1-c8ef2.firebasestorage.app",
+                messagingSenderId: "1003289602251",
+                appId: "1:1003289602251:web:0408ed247b5bb073e6d34e",
+                measurementId: "G-P45F7TSDWZ"
+            };
+
         const app = initializeApp(firebaseConfig);
         window.state.auth = getAuth(app);
         window.state.db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'spc-fire-tracker';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'spc-fire-academy';
 
         const setSyncStatus = (status, colorClass) => {
             const ind = document.getElementById('sync-indicator');
