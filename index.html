@@ -4,12 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SPC Fire Academy - Performance Tracker</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#dc2626">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SPC Fire">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/785/785116.png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; }
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .sidebar-link.active { background-color: #dc2626; color: white; box-shadow: 0 10px 15px -3px rgba(220, 38, 38, 0.3); }
@@ -18,7 +27,8 @@
         .fade-in { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @media print { .no-print { display: none !important; } }
-        #pdf-render-zone { position: absolute; left: -9999px; top: 0; width: 850px; z-index: -1; background: white; }
+        .folder-card { transition: all 0.2s ease; border: 2px solid transparent; }
+        .folder-card:hover { border-color: #dc2626; transform: translateY(-2px); }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col md:flex-row">
@@ -42,6 +52,9 @@
             <button onclick="prepareNewEvaluation()" id="nav-evaluation" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-slate-400 hover:bg-slate-800 hover:text-white">
                 <i class="fa-solid fa-plus w-5"></i> New Evaluation
             </button>
+            <button onclick="switchTab('roster')" id="nav-roster" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-slate-400 hover:bg-slate-800 hover:text-white">
+                <i class="fa-solid fa-folder-open w-5"></i> Academy Roster
+            </button>
             <button onclick="switchTab('database')" id="nav-database" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-slate-400 hover:bg-slate-800 hover:text-white">
                 <i class="fa-solid fa-users w-5"></i> Raw Database
             </button>
@@ -63,8 +76,8 @@
         </div>
     </aside>
 
-    <!-- Main -->
     <main class="flex-1 p-6 lg:p-10 overflow-y-auto max-h-screen custom-scrollbar">
+        <!-- Header -->
         <header class="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 no-print">
             <div>
                 <h2 id="page-title" class="text-3xl font-black text-slate-900 uppercase tracking-tighter">Academy Overview</h2>
@@ -81,7 +94,7 @@
             </div>
         </header>
 
-        <!-- DASHBOARD -->
+        <!-- DASHBOARD TAB -->
         <section id="tab-dashboard" class="tab-content active space-y-6 fade-in">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
@@ -89,24 +102,23 @@
                     <h3 id="stat-total" class="text-4xl font-black text-slate-900">0</h3>
                 </div>
                 <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Academy Pass Rate</p>
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Pass Rate</p>
                     <h3 id="stat-pass-rate" class="text-4xl font-black text-red-600">0%</h3>
                 </div>
                 <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Total Cloud Records</p>
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Cloud Records</p>
                     <h3 id="stat-count" class="text-4xl font-black text-blue-600">0</h3>
                 </div>
             </div>
-
             <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="p-6 border-b border-slate-100 flex justify-between items-center font-black uppercase text-xs">
                     <span class="text-slate-900">Latest Activity</span>
-                    <button onclick="switchTab('tracker')" class="text-red-600 font-bold hover:underline">History</button>
+                    <button onclick="switchTab('tracker')" class="text-red-600 font-bold hover:underline">Full History</button>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left">
                         <thead class="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase">
-                            <tr><th class="px-6 py-4">Candidate</th><th class="px-6 py-4">Status</th><th class="px-6 py-4">Date</th><th class="px-6 py-4">Action</th></tr>
+                            <tr><th class="px-6 py-4">Candidate</th><th class="px-6 py-4">Status</th><th class="px-6 py-4">Date</th><th class="px-6 py-4 text-right">Action</th></tr>
                         </thead>
                         <tbody id="dashboard-feed" class="divide-y divide-slate-100"></tbody>
                     </table>
@@ -114,44 +126,41 @@
             </div>
         </section>
 
-        <!-- TRACKER -->
+        <!-- TRACKER TAB -->
         <section id="tab-tracker" class="tab-content space-y-8 fade-in">
             <div class="bg-slate-900 p-8 rounded-3xl shadow-xl">
                 <h3 class="text-white font-black text-xl uppercase mb-4 tracking-tighter flex items-center gap-2">
-                    <i class="fa-solid fa-magnifying-glass text-red-500"></i>
-                    Candidate Progress Search
+                    <i class="fa-solid fa-magnifying-glass text-red-500"></i> Candidate Search
                 </h3>
-                <div class="flex gap-4">
-                    <input type="text" id="tracker-search" oninput="renderTracker()" placeholder="Type Candidate Name or ID..." class="flex-1 p-4 rounded-2xl bg-slate-800 border-2 border-slate-700 text-white font-bold outline-none focus:border-red-600 transition-all">
-                </div>
+                <input type="text" id="tracker-search" oninput="renderTracker()" placeholder="Type Candidate Name or ID..." class="w-full p-4 rounded-2xl bg-slate-800 border-2 border-slate-700 text-white font-bold outline-none focus:border-red-600 transition-all">
             </div>
             <div id="tracker-results" class="space-y-12"></div>
         </section>
 
-        <!-- EVALUATION -->
+        <!-- EVALUATION TAB -->
         <section id="tab-evaluation" class="tab-content space-y-8 fade-in pb-24">
             <div class="bg-white rounded-3xl shadow-xl border-t-8 border-red-600 p-8">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="font-black uppercase text-xs tracking-widest text-slate-400">Entry Form</h2>
-                    <span id="edit-badge" class="hidden px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-widest">Updating Record</span>
+                    <span id="edit-badge" class="hidden px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase">Updating Record</span>
                 </div>
 
-                <!-- Dropdown Quick Selection -->
+                <!-- Quick Select From Folders -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 pb-8 border-b border-slate-100">
                     <div class="space-y-1">
                         <label class="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-2">
-                            <i class="fa-solid fa-user-tie"></i> Quick Select Instructor
+                            <i class="fa-solid fa-folder-user"></i> Quick Instructor Select
                         </label>
                         <select id="quick-instructor-select" onchange="autoFillInstructor(this.value)" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold text-sm focus:border-red-600 transition-colors">
-                            <option value="">-- Choose Pre-recorded Instructor --</option>
+                            <option value="">-- Select from Instructor Folder --</option>
                         </select>
                     </div>
                     <div class="space-y-1">
                         <label class="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-2">
-                            <i class="fa-solid fa-user-graduate"></i> Quick Select Candidate
+                            <i class="fa-solid fa-folder-user"></i> Quick Student Select
                         </label>
                         <select id="quick-candidate-select" onchange="autoFillCandidate(this.value)" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold text-sm focus:border-red-600 transition-colors">
-                            <option value="">-- Choose Pre-recorded Candidate --</option>
+                            <option value="">-- Select from Student Folder --</option>
                         </select>
                     </div>
                 </div>
@@ -176,11 +185,57 @@
             </footer>
         </section>
 
-        <!-- DATABASE -->
+        <!-- ROSTER TAB (FOLDERS) -->
+        <section id="tab-roster" class="tab-content space-y-8 fade-in">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Instructor Directory -->
+                <div class="folder-card bg-white rounded-3xl shadow-xl overflow-hidden">
+                    <div class="p-6 bg-slate-900 text-white flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-folder text-amber-400 text-2xl"></i>
+                            <h3 class="font-black uppercase tracking-tighter text-xl">Instructor Directory</h3>
+                        </div>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div class="flex gap-2">
+                            <input type="text" id="new-instructor-name" placeholder="Full Name..." class="flex-1 p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold focus:border-red-600 transition-colors">
+                            <button onclick="addRosterItem('instructors')" class="bg-red-600 text-white px-4 py-3 rounded-xl hover:bg-red-700"><i class="fa-solid fa-user-plus"></i></button>
+                        </div>
+                        <div id="roster-instructors-list" class="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar"></div>
+                    </div>
+                </div>
+
+                <!-- Student Directory -->
+                <div class="folder-card bg-white rounded-3xl shadow-xl overflow-hidden">
+                    <div class="p-6 bg-slate-900 text-white flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-folder text-blue-400 text-2xl"></i>
+                            <h3 class="font-black uppercase tracking-tighter text-xl">Student Directory</h3>
+                        </div>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div class="space-y-2">
+                            <input type="text" id="new-candidate-name" placeholder="Student Full Name..." class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold focus:border-red-600 transition-colors">
+                            <div class="flex gap-2">
+                                <input type="text" id="new-candidate-id" placeholder="ID (e.g. C-101)..." class="flex-1 p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold focus:border-red-600 transition-colors">
+                                <input type="text" id="new-candidate-class" placeholder="Class ID..." class="flex-1 p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold focus:border-red-600 transition-colors">
+                                <button onclick="addRosterItem('candidates')" class="bg-red-600 text-white px-4 py-3 rounded-xl hover:bg-red-700"><i class="fa-solid fa-user-plus"></i></button>
+                            </div>
+                        </div>
+                        <div id="roster-candidates-list" class="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RAW DATABASE TAB -->
         <section id="tab-database" class="tab-content fade-in space-y-6">
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
                 <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div class="relative w-full md:w-96"><i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i><input type="text" id="db-search" oninput="renderDatabase()" placeholder="Filter logs..." class="w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold"></div>
+                    <div class="relative w-full md:w-96">
+                        <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="db-search" oninput="renderDatabase()" placeholder="Filter logs..." class="w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold">
+                    </div>
                     <button onclick="exportCSV()" class="bg-slate-900 text-white px-6 py-3 rounded-xl font-black text-xs uppercase flex items-center gap-2 hover:bg-slate-800 transition-colors"><i class="fa-solid fa-file-csv"></i> EXPORT CSV</button>
                 </div>
             </div>
@@ -194,46 +249,32 @@
             </div>
         </section>
 
-        <!-- STATS -->
+        <!-- STATS TAB -->
         <section id="tab-analytics" class="tab-content fade-in space-y-8">
             <div id="analytics-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"></div>
         </section>
     </main>
 
-    <div id="pdf-render-zone" class="bg-white"></div>
+    <!-- Hidden Zone for Export Calcs (Not visible but allows DOM manipulation if needed) -->
+    <div id="pdf-render-zone" style="display:none;"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // APP ROSTER CONFIG
-        const PRESET_INSTRUCTORS = [
-            "Mc Claver", 
-            "Dean", 
-            "Petrone", 
-            "bodine", 
-            "Burford"
-        ];
-
-        const PRESET_CANDIDATES = [
-            { name: "John Doe", id: "C-1001", class: "ALPHA-24" },
-            { name: "Jane Smith", id: "C-1002", class: "ALPHA-24" },
-            { name: "Mike Johnson", id: "C-1003", class: "BETA-24" },
-            { name: "Sarah Williams", id: "C-1004", class: "BETA-24" }
-        ];
-
-        // APP TASKS CONFIG
-        const TASKS = [
+        // Global Configuration
+        const TASKS_CONFIG = [
             { id: 1, title: "PPE - SCBA - Hose Pull Pattern", limit: "4:40", limitSec: 280, checks: ["Morning Checks: Bottle Psi Recorded", "Viber alert Activate", "Pass Device Activate", "Remote Pressure Gauge State Pressure (PSI)", "Wear SCBA Mask", "Inhalation test", "Exhalation Test", "Helmets Chain straps Ear Flap", "Gloves", "Pulled the correct load (Flat, Triple, Minute man)", "Prior to IDLH on air", "Radio to command", "Correct pattern"] },
             { id: 2, title: "Rope And Knots", limit: "2:00", limitSec: 120, checks: ["Selected correct rope", "Knot tied correctly", "Safety/Dressing applied"] },
             { id: 3, title: "Ladder Raise & Search", limit: "4:40", limitSec: 280, checks: ["Tips are square", "Dogs are locked", "Butts are square", "Hyliard is tied", "Proper climbing angle", "Ladder is butted and ready", "Entry Division 2 Par 1", "Sound the floor", "Clear the floor", "Victim found command", "Exited structure Par 1 Plus 1"] },
-            { id: 4, title: "Task 4 - Fire Attack", limit: "4:40", limitSec: 280, checks: ["Advance charged line", "Proper nozzle patterns", "Maintain low profile", "Communication with partner", "Check for hotspots"] },
-            { id: 5, title: "Task 5 - Search & Rescue", limit: "4:40", limitSec: 280, checks: ["Right/Left hand search", "Maintain orientation", "Proper victim drag", "Communicate exit", "Air management check"] }
+            { id: 4, title: "Task 4 - Custom Drill", limit: "4:40", limitSec: 280, checks: ["Task Completed Correctly", "Proper Technique", "Safety Protocols Followed"] },
+            { id: 5, title: "Task 5 - Custom Drill", limit: "4:40", limitSec: 280, checks: ["Task Completed Correctly", "Proper Technique", "Safety Protocols Followed"] }
         ];
 
         window.state = {
             evals: [],
+            roster: { instructors: [], candidates: [] },
             activeTab: 'dashboard',
             editingId: null,
             timers: {},
@@ -243,23 +284,20 @@
             auth: null
         };
 
-        // RESTORED FIREBASE CONFIG FROM index17.html
-        const firebaseConfig = (typeof __firebase_config !== 'undefined') 
-            ? JSON.parse(__firebase_config) 
-            : {
-                apiKey: "AIzaSyAwP3P8uzX3ejnzI-fj9_Z9T8LUV0jWeZQ",
-                authDomain: "fireacademy1-c8ef2.firebaseapp.com",
-                projectId: "fireacademy1-c8ef2",
-                storageBucket: "fireacademy1-c8ef2.firebasestorage.app",
-                messagingSenderId: "1003289602251",
-                appId: "1:1003289602251:web:0408ed247b5bb073e6d34e",
-                measurementId: "G-P45F7TSDWZ"
-            };
+        const firebaseConfig = {
+            apiKey: "AIzaSyAwP3P8uzX3ejnzI-fj9_Z9T8LUV0jWeZQ",
+            authDomain: "fireacademy1-c8ef2.firebaseapp.com",
+            projectId: "fireacademy1-c8ef2",
+            storageBucket: "fireacademy1-c8ef2.firebasestorage.app",
+            messagingSenderId: "1003289602251",
+            appId: "1:1003289602251:web:0408ed247b5bb073e6d34e",
+            measurementId: "G-P45F7TSDWZ"
+        };
 
         const app = initializeApp(firebaseConfig);
         window.state.auth = getAuth(app);
         window.state.db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'spc-fire-academy';
+        const appId = 'spc-fire-academy';
 
         const setSyncStatus = (status, colorClass) => {
             const ind = document.getElementById('sync-indicator');
@@ -269,16 +307,7 @@
         };
 
         const initAuth = async () => {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(window.state.auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(window.state.auth);
-                }
-            } catch (err) {
-                console.error("Auth Fail", err);
-                setSyncStatus("Offline", "bg-red-500");
-            }
+            try { await signInAnonymously(window.state.auth); } catch (e) { setSyncStatus("Offline", "bg-red-500"); }
         };
 
         onAuthStateChanged(window.state.auth, (user) => {
@@ -286,66 +315,126 @@
             if (user) {
                 setSyncStatus("Online", "bg-green-500");
                 setupDataListener();
-            } else {
-                setSyncStatus("Disconnected", "bg-slate-500");
+                setupRosterListener();
             }
         });
 
+        // Real-time Cloud Listeners
         const setupDataListener = () => {
-            if (!window.state.user) return;
             const q = collection(window.state.db, 'artifacts', appId, 'public', 'data', 'evaluations');
             onSnapshot(q, (snap) => {
                 const cloudEvals = snap.docs.map(doc => ({ ...doc.data(), internalId: doc.id }));
                 window.state.evals = cloudEvals.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
                 window.refreshUI();
-            }, (err) => {
-                console.error("Firestore Error", err);
-                setSyncStatus("Sync Error", "bg-amber-500");
             });
         };
 
-        const formatTime = s => `${Math.floor(s/60)}:${(s%60).toString().padStart(2, '0')}`;
+        const setupRosterListener = () => {
+            const instQ = collection(window.state.db, 'artifacts', appId, 'public', 'data', 'instructors');
+            onSnapshot(instQ, (snap) => {
+                window.state.roster.instructors = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.name.localeCompare(b.name));
+                renderRosterLists();
+                updateFormDropdowns();
+            });
+            const candQ = collection(window.state.db, 'artifacts', appId, 'public', 'data', 'candidates');
+            onSnapshot(candQ, (snap) => {
+                window.state.roster.candidates = snap.docs.map(doc => ({ internalId: doc.id, ...doc.data() })).sort((a,b) => a.name.localeCompare(b.name));
+                renderRosterLists();
+                updateFormDropdowns();
+            });
+        };
 
-        // ROSTER POPULATION LOGIC
-        const populatePresetSelects = () => {
-            const instSelect = document.getElementById('quick-instructor-select');
-            const candSelect = document.getElementById('quick-candidate-select');
-            
-            if(instSelect) {
-                instSelect.innerHTML = '<option value="">-- Choose Pre-recorded Instructor --</option>' + 
-                    PRESET_INSTRUCTORS.map(i => `<option value="${i}">${i}</option>`).join('');
-            }
-            
-            if(candSelect) {
-                candSelect.innerHTML = '<option value="">-- Choose Pre-recorded Candidate --</option>' + 
-                    PRESET_CANDIDATES.map(c => `<option value="${c.id}">${c.name} (ID: ${c.id})</option>`).join('');
+        // Roster/Directory Management
+        window.addRosterItem = async (type) => {
+            if (!window.state.user) return;
+            if (type === 'instructors') {
+                const name = document.getElementById('new-instructor-name').value;
+                if (!name) return;
+                const id = 'inst_' + Date.now();
+                await setDoc(doc(window.state.db, 'artifacts', appId, 'public', 'data', 'instructors', id), { name });
+                document.getElementById('new-instructor-name').value = "";
+            } else {
+                const name = document.getElementById('new-candidate-name').value;
+                const cid = document.getElementById('new-candidate-id').value;
+                const cclass = document.getElementById('new-candidate-class').value;
+                if (!name || !cid) return;
+                const id = 'cand_' + Date.now();
+                await setDoc(doc(window.state.db, 'artifacts', appId, 'public', 'data', 'candidates', id), { name, id: cid, class: cclass });
+                document.getElementById('new-candidate-name').value = "";
+                document.getElementById('new-candidate-id').value = "";
+                document.getElementById('new-candidate-class').value = "";
             }
         };
 
+        window.removeRosterItem = async (type, id) => {
+            if (confirm("Delete entry from directory?")) {
+                await deleteDoc(doc(window.state.db, 'artifacts', appId, 'public', 'data', type, id));
+            }
+        };
+
+        const renderRosterLists = () => {
+            const instList = document.getElementById('roster-instructors-list');
+            const candList = document.getElementById('roster-candidates-list');
+            if (instList) {
+                instList.innerHTML = window.state.roster.instructors.map(i => `
+                    <div class="flex justify-between items-center p-3 bg-slate-50 border rounded-xl group hover:bg-white hover:shadow-sm transition-all">
+                        <span class="font-bold text-slate-700">${i.name}</span>
+                        <button onclick="removeRosterItem('instructors', '${i.id}')" class="text-slate-300 hover:text-red-600 transition-colors"><i class="fa-solid fa-circle-xmark"></i></button>
+                    </div>
+                `).join('') || '<div class="text-center py-8 text-slate-400 italic">Empty</div>';
+            }
+            if (candList) {
+                candList.innerHTML = window.state.roster.candidates.map(c => `
+                    <div class="flex justify-between items-center p-3 bg-slate-50 border rounded-xl group hover:bg-white hover:shadow-sm transition-all">
+                        <div>
+                            <p class="font-bold text-slate-700">${c.name}</p>
+                            <p class="text-[10px] uppercase font-black text-slate-400">ID: ${c.id} | ${c.class}</p>
+                        </div>
+                        <button onclick="removeRosterItem('candidates', '${c.internalId}')" class="text-slate-300 hover:text-red-600 transition-colors"><i class="fa-solid fa-circle-xmark"></i></button>
+                    </div>
+                `).join('') || '<div class="text-center py-8 text-slate-400 italic">Empty</div>';
+            }
+        };
+
+        const updateFormDropdowns = () => {
+            const instSelect = document.getElementById('quick-instructor-select');
+            const candSelect = document.getElementById('quick-candidate-select');
+            if (instSelect) {
+                instSelect.innerHTML = '<option value="">-- Select from Instructor Folder --</option>' + 
+                    window.state.roster.instructors.map(i => `<option value="${i.name}">${i.name}</option>`).join('');
+            }
+            if (candSelect) {
+                candSelect.innerHTML = '<option value="">-- Select from Student Folder --</option>' + 
+                    window.state.roster.candidates.map(c => `<option value="${c.id}">${c.name} (${c.id})</option>`).join('');
+            }
+        };
+
+        // Form Auto-fill Functions
         window.autoFillInstructor = (name) => {
             if(!name) return;
             document.getElementById('eval-instructor').value = name;
-            // Also sync the global instructor input
             document.getElementById('instructor-name-input').value = name;
             localStorage.setItem('spc_instructor', name);
         };
 
         window.autoFillCandidate = (id) => {
-            const cand = PRESET_CANDIDATES.find(c => c.id === id);
+            const cand = window.state.roster.candidates.find(c => c.id === id);
             if(cand) {
                 document.getElementById('eval-name').value = cand.name;
                 document.getElementById('eval-id').value = cand.id;
-                document.getElementById('eval-class').value = cand.class;
+                document.getElementById('eval-class').value = cand.class || "";
             }
         };
 
+        // UI Helpers
+        const formatTime = s => `${Math.floor(s/60)}:${(s%60).toString().padStart(2, '0')}`;
+
         window.saveEvaluation = async () => {
-            if (!window.state.user) return alert("System not connected.");
+            if (!window.state.user) return;
             const nameEl = document.getElementById('eval-name');
             const idEl = document.getElementById('eval-id');
             const saveBtn = document.getElementById('save-btn');
-            
-            if (!nameEl.value || !idEl.value) return alert("Candidate Name and ID are required.");
+            if (!nameEl.value || !idEl.value) return alert("Required: Name & ID");
 
             saveBtn.disabled = true;
             const original = saveBtn.innerHTML;
@@ -369,35 +458,23 @@
                 await setDoc(doc(window.state.db, 'artifacts', appId, 'public', 'data', 'evaluations', docId), record);
                 window.prepareNewEvaluation();
                 window.switchTab('dashboard');
-            } catch (err) { alert("Save Failed: " + err.message); }
-            finally { 
-                saveBtn.disabled = false; 
-                saveBtn.innerHTML = original;
-            }
+            } finally { saveBtn.disabled = false; saveBtn.innerHTML = original; }
         };
 
         window.editEval = (id) => {
             const rec = window.state.evals.find(e => e.internalId === id);
             if (!rec) return;
-            
             Object.values(window.state.timers).forEach(clearInterval);
             window.state.timers = {};
             window.state.editingId = id;
             window.state.current = JSON.parse(JSON.stringify(rec));
-            
-            // Ensure any legacy tasks have necessary fields
-            window.state.current.tasks.forEach(t => {
-                if (typeof t.feedback === 'undefined') t.feedback = "";
-            });
-            
+            window.state.current.tasks.forEach(t => { if (typeof t.feedback === 'undefined') t.feedback = ""; });
             window.switchTab('evaluation');
             window.updateFormInputs();
         };
 
         window.deleteEval = async (id) => {
-            if (confirm("Delete this cloud record permanently?")) {
-                await deleteDoc(doc(window.state.db, 'artifacts', appId, 'public', 'data', 'evaluations', id));
-            }
+            if (confirm("Delete permanently?")) { await deleteDoc(doc(window.state.db, 'artifacts', appId, 'public', 'data', 'evaluations', id)); }
         };
 
         window.switchTab = (tab) => {
@@ -416,7 +493,6 @@
                 if (!existing || new Date(rec.updatedAt) > new Date(existing.updatedAt)) uniqueMap.set(rec.id, rec);
             });
             const reconciled = Array.from(uniqueMap.values());
-
             document.getElementById('stat-total').innerText = reconciled.length;
             document.getElementById('stat-count').innerText = window.state.evals.length;
             const passes = reconciled.filter(e => e.finalStatus === 'PASS').length;
@@ -425,95 +501,56 @@
             const feed = document.getElementById('dashboard-feed');
             if (feed) {
                 feed.innerHTML = window.state.evals.slice(0, 5).map(e => `
-                    <tr>
-                        <td class="px-6 py-4"><b>${e.name}</b><br><span class="text-[10px] text-slate-400 font-bold uppercase">${e.id}</span></td>
-                        <td class="px-6 py-4 uppercase font-black text-[10px] ${e.finalStatus === 'PASS' ? 'text-green-600' : 'text-red-600'}">${e.finalStatus}</td>
-                        <td class="px-6 py-4 text-xs font-bold text-slate-500">${e.date}</td>
-                        <td class="px-6 py-4"><button onclick="viewHistory('${e.id}')" class="text-red-600 font-black text-[10px] uppercase hover:underline">View History</button></td>
-                    </tr>
-                `).join('') || '<tr><td colspan="4" class="p-8 text-center text-slate-400 italic">No cloud activity yet.</td></tr>';
+                    <tr><td class="px-6 py-4"><b>${e.name}</b><br><span class="text-[10px] text-slate-400 font-bold uppercase">${e.id}</span></td>
+                    <td class="px-6 py-4 uppercase font-black text-[10px] ${e.finalStatus === 'PASS' ? 'text-green-600' : 'text-red-600'}">${e.finalStatus}</td>
+                    <td class="px-6 py-4 text-xs font-bold text-slate-500">${e.date}</td>
+                    <td class="px-6 py-4 text-right"><button onclick="viewHistory('${e.id}')" class="text-red-600 font-black text-[10px] uppercase hover:underline">History</button></td></tr>
+                `).join('') || '<tr><td colspan="4" class="p-8 text-center text-slate-400 italic">No activity</td></tr>';
             }
-
             if (window.state.activeTab === 'database') window.renderDatabase();
             if (window.state.activeTab === 'tracker') window.renderTracker();
             if (window.state.activeTab === 'analytics') renderAnalytics(reconciled);
         };
 
-        window.viewHistory = (candidateId) => {
-            window.switchTab('tracker');
-            document.getElementById('tracker-search').value = candidateId;
-            window.renderTracker();
-        };
+        window.viewHistory = (cid) => { window.switchTab('tracker'); document.getElementById('tracker-search').value = cid; window.renderTracker(); };
 
         window.renderTracker = () => {
             const container = document.getElementById('tracker-results');
             const q = document.getElementById('tracker-search').value.toLowerCase();
             if (!q) { container.innerHTML = ""; return; }
-            
             const history = window.state.evals.filter(e => e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q));
             const grouped = {};
-            history.forEach(e => {
-                if (!grouped[e.id]) grouped[e.id] = { name: e.name, id: e.id, attempts: [] };
-                grouped[e.id].attempts.push(e);
-            });
-
-            container.innerHTML = Object.values(grouped).map(candidate => `
+            history.forEach(e => { if (!grouped[e.id]) grouped[e.id] = { name: e.name, id: e.id, attempts: [] }; grouped[e.id].attempts.push(e); });
+            container.innerHTML = Object.values(grouped).map(cand => `
                 <div class="space-y-6 fade-in">
                     <div class="flex items-center justify-between bg-slate-900 p-6 rounded-3xl text-white shadow-xl">
-                        <div class="flex items-center gap-4">
-                            <div class="w-16 h-16 rounded-2xl bg-red-600 flex items-center justify-center font-black text-2xl">${candidate.name[0]}</div>
-                            <div><h2 class="text-2xl font-black uppercase tracking-tighter">${candidate.name}</h2><p class="text-slate-400 font-bold text-xs uppercase tracking-widest">ID: ${candidate.id}</p></div>
-                        </div>
-                        <button onclick="generateCandidateHistoryPDF('${candidate.id}')" id="full-pdf-${candidate.id}" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all">
-                            <i class="fa-solid fa-file-contract"></i> Full History Report
-                        </button>
+                        <div class="flex items-center gap-4"><div class="w-16 h-16 rounded-2xl bg-red-600 flex items-center justify-center font-black text-2xl">${cand.name[0]}</div>
+                        <div><h2 class="text-2xl font-black uppercase tracking-tighter">${cand.name}</h2><p class="text-slate-400 font-bold text-xs uppercase tracking-widest">ID: ${cand.id}</p></div></div>
+                        <button onclick="downloadHistoryAsWord('${cand.id}')" id="full-doc-${cand.id}" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase flex items-center gap-2 transition-all"><i class="fa-solid fa-file-word"></i> Full History (Word)</button>
                     </div>
-                    <div class="grid grid-cols-1 gap-6">
-                        ${candidate.attempts.map((attempt, idx) => `
-                            <div class="bg-white rounded-3xl border-2 border-slate-100 p-8 shadow-sm">
-                                <div class="flex justify-between items-center mb-6">
-                                    <div class="flex items-center gap-4">
-                                        <span class="px-4 py-1 rounded-full bg-slate-100 text-slate-500 font-black text-[10px] uppercase">Attempt #${candidate.attempts.length - idx}</span>
-                                        <h4 class="font-black text-slate-800 uppercase tracking-tight">${attempt.date}</h4>
-                                        <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${attempt.finalStatus === 'PASS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${attempt.finalStatus}</span>
-                                    </div>
-                                    <div class="flex items-center gap-3">
-                                        <button id="pdf-btn-${attempt.internalId}" onclick="generatePDFReport('${attempt.internalId}')" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-800 transition-colors"><i class="fa-solid fa-file-pdf"></i> Report</button>
-                                        <button onclick="editEval('${attempt.internalId}')" class="p-2 text-blue-500 hover:bg-blue-50 rounded-lg"><i class="fa-solid fa-edit"></i></button>
-                                    </div>
-                                </div>
-                                <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-                                    ${attempt.tasks.map(t => `
-                                        <div class="p-4 rounded-2xl border ${t.manualStatus === 'PASS' ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}">
-                                            <p class="text-[8px] font-black text-slate-400 uppercase truncate">${t.title}</p>
-                                            <p class="text-lg font-black">${formatTime(t.time)}</p>
-                                            <div class="flex items-center justify-between mt-1"><span class="text-[8px] font-bold uppercase ${t.manualStatus === 'PASS' ? 'text-green-600' : 'text-red-600'}">${t.manualStatus || 'FAIL'}</span></div>
-                                            ${t.feedback ? `<p class="text-[8px] mt-2 italic text-slate-500 border-t pt-1 line-clamp-2">${t.feedback}</p>` : ''}
-                                        </div>
-                                    `).join('')}
-                                </div>
+                    <div class="grid grid-cols-1 gap-6">${cand.attempts.map((attempt, idx) => `
+                        <div class="bg-white rounded-3xl border-2 border-slate-100 p-8 shadow-sm">
+                            <div class="flex justify-between items-center mb-6">
+                                <div class="flex items-center gap-4"><span class="px-4 py-1 rounded-full bg-slate-100 text-slate-500 font-black text-[10px] uppercase">Attempt #${cand.attempts.length - idx}</span><h4 class="font-black text-slate-800 uppercase tracking-tight">${attempt.date}</h4><span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${attempt.finalStatus === 'PASS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${attempt.finalStatus}</span></div>
+                                <div class="flex items-center gap-3"><button id="doc-btn-${attempt.internalId}" onclick="downloadAttemptAsWord('${attempt.internalId}')" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-slate-800 transition-colors"><i class="fa-solid fa-file-word"></i> Word Doc</button><button onclick="editEval('${attempt.internalId}')" class="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><i class="fa-solid fa-edit"></i></button></div>
                             </div>
-                        `).join('')}
+                            <div class="grid grid-cols-2 md:grid-cols-5 gap-3">${attempt.tasks.map(t => `
+                                <div class="p-4 rounded-2xl border ${t.manualStatus === 'PASS' ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}"><p class="text-[8px] font-black text-slate-400 uppercase truncate">${t.title}</p><p class="text-lg font-black">${formatTime(t.time)}</p><span class="text-[8px] font-bold uppercase ${t.manualStatus === 'PASS' ? 'text-green-600' : 'text-red-600'}">${t.manualStatus || 'FAIL'}</span>
+                                ${t.feedback ? `<p class="text-[8px] mt-2 italic text-slate-500 border-t pt-1 line-clamp-2">${t.feedback}</p>` : ''}</div>`).join('')}
+                            </div>
+                        </div>`).join('')}
                     </div>
-                </div>
-            `).join('') || '<div class="p-20 text-center text-slate-400 font-black uppercase tracking-widest">No matching records found.</div>';
+                </div>`).join('') || '<div class="p-20 text-center text-slate-400 font-black uppercase">No records found</div>';
         };
 
-        const renderAnalytics = (reconciled) => {
+        const renderAnalytics = (rec) => {
             const grid = document.getElementById('analytics-grid');
             if (!grid) return;
-            grid.innerHTML = TASKS.map(t => {
-                const match = reconciled.flatMap(e => (e.tasks || []).filter(x => x.id === t.id));
+            grid.innerHTML = TASKS_CONFIG.map(t => {
+                const match = rec.flatMap(e => (e.tasks || []).filter(x => x.id === t.id));
                 const rate = match.length > 0 ? Math.round((match.filter(x => x.manualStatus === 'PASS').length / match.length) * 100) : 0;
-                return `
-                    <div class="bg-white p-6 rounded-3xl border shadow-sm space-y-4 fade-in">
-                        <h4 class="text-[10px] font-black text-slate-400 uppercase">${t.title}</h4>
-                        <div class="flex justify-between items-end">
-                            <div><p class="text-2xl font-black">${rate}%</p><p class="text-[9px] font-bold text-slate-400 uppercase italic">Standings</p></div>
-                            <div class="w-1/2 bg-slate-100 h-1.5 rounded-full overflow-hidden"><div class="bg-red-600 h-full transition-all duration-1000" style="width: ${rate}%"></div></div>
-                        </div>
-                    </div>
-                `;
+                return `<div class="bg-white p-6 rounded-3xl border shadow-sm space-y-4 fade-in"><h4 class="text-[10px] font-black text-slate-400 uppercase">${t.title}</h4>
+                    <div class="flex justify-between items-end"><div><p class="text-2xl font-black">${rate}%</p></div><div class="w-1/2 bg-slate-100 h-1.5 rounded-full overflow-hidden"><div class="bg-red-600 h-full transition-all duration-1000" style="width: ${rate}%"></div></div></div></div>`;
             }).join('');
         };
 
@@ -521,281 +558,132 @@
             const list = document.getElementById('full-list');
             const q = document.getElementById('db-search').value.toLowerCase();
             list.innerHTML = window.state.evals.filter(e => e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q)).map(e => `
-                <tr class="hover:bg-slate-50 group">
-                    <td class="px-6 py-4"><b>${e.name}</b><br><span class="text-[10px] text-slate-400 font-black">${e.date} (ID: ${e.id})</span></td>
-                    <td class="px-6 py-4 text-sm text-slate-500 font-bold">${e.instructor}</td>
+                <tr class="hover:bg-slate-50 group"><td class="px-6 py-4"><b>${e.name}</b><br><span class="text-[10px] text-slate-400 font-black">${e.date} (ID: ${e.id})</span></td><td class="px-6 py-4 text-sm text-slate-500 font-bold">${e.instructor}</td>
                     <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${e.finalStatus === 'PASS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${e.finalStatus}</span></td>
-                    <td class="px-6 py-4 text-right opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onclick="window.editEval('${e.internalId}')" class="p-2 text-blue-500 hover:bg-blue-50 rounded-lg mr-1"><i class="fa-solid fa-edit"></i></button>
-                        <button onclick="window.deleteEval('${e.internalId}')" class="p-2 text-red-500 hover:bg-red-50 rounded-lg"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                </tr>
-            `).join('') || '<tr><td colspan="4" class="p-12 text-center text-slate-400 italic">No cloud logs matching criteria.</td></tr>';
+                    <td class="px-6 py-4 text-right opacity-0 group-hover:opacity-100 transition-opacity"><button onclick="window.editEval('${e.internalId}')" class="p-2 text-blue-500 hover:bg-blue-50 rounded-lg mr-1"><i class="fa-solid fa-edit"></i></button><button onclick="window.deleteEval('${e.internalId}')" class="p-2 text-red-500 hover:bg-red-50 rounded-lg"><i class="fa-solid fa-trash"></i></button></td></tr>
+            `).join('') || '<tr><td colspan="4" class="p-12 text-center text-slate-400 italic">No logs found</td></tr>';
         };
 
         window.exportCSV = () => {
             if (window.state.evals.length === 0) return;
             const headers = ["Candidate", "ID", "Class", "Instructor", "Date", "Task", "Seconds", "Grade", "Feedback"];
-            const rows = window.state.evals.flatMap(e => (e.tasks || []).map(t => [
-                `"${e.name}"`, `"${e.id}"`, `"${e.class}"`, `"${e.instructor}"`, e.date, `"${t.title}"`, t.time, t.manualStatus, `"${(t.feedback || '').replace(/"/g, '""')}"`
-            ]));
+            const rows = window.state.evals.flatMap(e => (e.tasks || []).map(t => [`"${e.name}"`, `"${e.id}"`, `"${e.class}"`, `"${e.instructor}"`, e.date, `"${t.title}"`, t.time, t.manualStatus, `"${(t.feedback || '').replace(/"/g, '""')}"`]));
             const csv = headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-            a.download = `SPC_Cloud_Log_${new Date().toISOString().split('T')[0]}.csv`;
-            a.click();
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = `SPC_Log_${new Date().toISOString().split('T')[0]}.csv`; a.click();
         };
 
         window.updateFormInputs = () => {
             const c = window.state.current;
-            document.getElementById('eval-name').value = c.name || "";
-            document.getElementById('eval-class').value = c.class || "";
-            document.getElementById('eval-date').value = c.date || "";
-            document.getElementById('eval-instructor').value = c.instructor || "";
-            document.getElementById('eval-id').value = c.id || "";
+            document.getElementById('eval-name').value = c.name || ""; document.getElementById('eval-class').value = c.class || ""; document.getElementById('eval-date').value = c.date || ""; document.getElementById('eval-instructor').value = c.instructor || ""; document.getElementById('eval-id').value = c.id || "";
             document.getElementById('edit-badge').classList.toggle('hidden', !window.state.editingId);
-            
-            // Reset dropdowns to default when switching entries
-            document.getElementById('quick-instructor-select').value = "";
-            document.getElementById('quick-candidate-select').value = "";
-
             window.renderTasks();
         };
 
         window.prepareNewEvaluation = () => {
             Object.values(window.state.timers).forEach(clearInterval);
-            window.state.timers = {};
-            window.state.editingId = null;
-            window.state.current = {
-                name: "", class: "", date: new Date().toISOString().split('T')[0],
-                instructor: localStorage.getItem('spc_instructor') || "", id: "",
-                tasks: TASKS.map(t => ({
-                    ...t, time: 0, isRunning: false, manualStatus: 'FAIL', feedback: "",
-                    checklistStates: t.checks.reduce((acc, c) => ({...acc, [c]: false}), {})
-                }))
-            };
-            window.switchTab('evaluation');
-            window.updateFormInputs();
+            window.state.timers = {}; window.state.editingId = null;
+            window.state.current = { name: "", class: "", date: new Date().toISOString().split('T')[0], instructor: localStorage.getItem('spc_instructor') || "", id: "", tasks: TASKS_CONFIG.map(t => ({ ...t, time: 0, isRunning: false, manualStatus: 'FAIL', feedback: "", checklistStates: t.checks.reduce((acc, c) => ({...acc, [c]: false}), {}) })) };
+            window.switchTab('evaluation'); window.updateFormInputs();
         };
 
         window.toggleTimer = (idx) => {
-            const task = window.state.current.tasks[idx];
-            if (task.isRunning) { clearInterval(window.state.timers[idx]); task.isRunning = false; }
-            else { 
-                task.isRunning = true; 
-                window.state.timers[idx] = setInterval(() => { 
-                    task.time++; 
-                    const el = document.getElementById(`t-val-${idx}`); 
-                    if (el) el.innerText = formatTime(task.time); 
-                }, 1000); 
-            }
+            const t = window.state.current.tasks[idx];
+            if (t.isRunning) { clearInterval(window.state.timers[idx]); t.isRunning = false; }
+            else { t.isRunning = true; window.state.timers[idx] = setInterval(() => { t.time++; const el = document.getElementById(`t-val-${idx}`); if (el) el.innerText = formatTime(t.time); }, 1000); }
             window.renderTasks();
         };
 
-        window.toggleCheck = (taskIdx, label) => {
-            const task = window.state.current.tasks[taskIdx];
-            task.checklistStates[label] = !task.checklistStates[label];
-            window.renderTasks();
-        };
-
-        window.updateTaskTitle = (idx, newTitle) => {
-            window.state.current.tasks[idx].title = newTitle;
-        };
-
-        window.updateTaskFeedback = (idx, feedback) => {
-            window.state.current.tasks[idx].feedback = feedback;
-        };
+        window.toggleCheck = (tidx, label) => { window.state.current.tasks[tidx].checklistStates[label] = !window.state.current.tasks[tidx].checklistStates[label]; window.renderTasks(); };
+        window.updateTaskTitle = (idx, nt) => { window.state.current.tasks[idx].title = nt; };
+        window.updateTaskFeedback = (idx, f) => { window.state.current.tasks[idx].feedback = f; };
 
         window.renderTasks = () => {
             const container = document.getElementById('tasks-list');
             if (window.state.activeTab !== 'evaluation' || !container) return;
-            container.innerHTML = window.state.current.tasks.map((task, idx) => `
-                <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 fade-in ${task.manualStatus === 'PASS' ? 'ring-4 ring-green-400' : (task.manualStatus === 'FAIL' ? 'ring-4 ring-red-400' : '')}">
-                    <div class="p-6 bg-slate-50 flex flex-col md:flex-row justify-between items-center gap-6 border-b border-slate-100">
-                        <div class="flex items-center gap-4 flex-1">
-                            <span class="w-12 h-12 rounded-2xl bg-red-700 text-white flex items-center justify-center font-black text-xl flex-shrink-0">${task.id}</span>
-                            <div class="flex-1">
-                                ${task.id >= 4 ? 
-                                    `<input type="text" value="${task.title}" oninput="window.updateTaskTitle(${idx}, this.value)" class="bg-transparent border-b-2 border-slate-200 font-black text-xl text-slate-800 uppercase outline-none focus:border-red-600 w-full" placeholder="Enter Task Name...">` :
-                                    `<h3 class="font-black text-xl text-slate-800 uppercase">${task.title}</h3>`
-                                }
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">LIMIT: ${task.limit}</p>
-                            </div>
+            container.innerHTML = window.state.current.tasks.map((t, idx) => `
+                <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 fade-in ${t.manualStatus === 'PASS' ? 'ring-4 ring-green-400' : (t.manualStatus === 'FAIL' ? 'ring-4 ring-red-400' : '')}">
+                    <div class="p-6 bg-slate-50 flex flex-col md:flex-row justify-between items-center gap-6 border-b">
+                        <div class="flex items-center gap-4 flex-1"><span class="w-12 h-12 rounded-2xl bg-red-700 text-white flex items-center justify-center font-black text-xl flex-shrink-0">${t.id}</span>
+                            <div class="flex-1">${t.id >= 4 ? `<input type="text" value="${t.title}" oninput="window.updateTaskTitle(${idx}, this.value)" class="bg-transparent border-b-2 border-slate-200 font-black text-xl text-slate-800 uppercase outline-none focus:border-red-600 w-full">` : `<h3 class="font-black text-xl text-slate-800 uppercase">${t.title}</h3>`}<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">LIMIT: ${t.limit}</p></div>
                         </div>
-                        <div class="flex items-center gap-3">
-                            <div class="px-6 py-3 rounded-2xl font-mono text-3xl font-black border-2 bg-white ${task.time > task.limitSec ? 'text-red-600 border-red-100 bg-red-50' : ''}"><span id="t-val-${idx}">${formatTime(task.time)}</span></div>
-                            <button onclick="window.toggleTimer(${idx})" class="px-6 py-3 rounded-2xl font-black text-xs uppercase shadow-lg transition-all active:scale-95 ${task.isRunning ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-blue-600 text-white hover:bg-blue-700'}">${task.isRunning ? 'PAUSE' : 'START'}</button>
-                        </div>
+                        <div class="flex items-center gap-3"><div class="px-6 py-3 rounded-2xl font-mono text-3xl font-black border-2 bg-white ${t.time > t.limitSec ? 'text-red-600 border-red-50' : ''}"><span id="t-val-${idx}">${formatTime(t.time)}</span></div><button onclick="window.toggleTimer(${idx})" class="px-6 py-3 rounded-2xl font-black text-xs uppercase shadow-lg transition-all active:scale-95 ${t.isRunning ? 'bg-amber-500' : 'bg-blue-600'} text-white">${t.isRunning ? 'PAUSE' : 'START'}</button></div>
                     </div>
                     <div class="p-8 space-y-6">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            ${task.checks.map(c => `
-                                <label class="flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${task.checklistStates[c] ? 'bg-green-50 border-green-200' : 'bg-white hover:bg-slate-50'}">
-                                    <input type="checkbox" ${task.checklistStates[c] ? 'checked' : ''} onchange="window.toggleCheck(${idx}, '${c.replace(/'/g, "\\'")}')" class="mt-1 w-5 h-5 rounded border-slate-300 text-red-600">
-                                    <span class="text-sm font-bold ${task.checklistStates[c] ? 'text-green-800' : 'text-slate-600'}">${c}</span>
-                                </label>
-                            `).join('')}
-                        </div>
-                        
-                        <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Instructor Feedback</label>
-                             <textarea oninput="window.updateTaskFeedback(${idx}, this.value)" class="w-full bg-white border border-slate-200 p-4 rounded-xl text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 transition-all min-h-[100px]" placeholder="Add observations, corrections, or praise here...">${task.feedback || ""}</textarea>
-                        </div>
-
-                        <div class="pt-6 border-t flex items-center gap-3">
-                            <button onclick="window.state.current.tasks[${idx}].manualStatus = 'PASS'; window.renderTasks();" class="px-8 py-2 rounded-xl font-black text-xs uppercase transition-all ${(task.manualStatus === 'PASS' ? 'bg-green-600 text-white shadow-lg' : 'bg-white border hover:bg-slate-50')}">Pass</button>
-                            <button onclick="window.state.current.tasks[${idx}].manualStatus = 'FAIL'; window.renderTasks();" class="px-8 py-2 rounded-xl font-black text-xs uppercase transition-all ${(task.manualStatus === 'FAIL' ? 'bg-red-600 text-white shadow-lg' : 'bg-white border hover:bg-slate-50')}">Fail</button>
-                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">${t.checks.map(c => `<label class="flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${t.checklistStates[c] ? 'bg-green-50 border-green-200' : 'bg-white hover:bg-slate-50'}"><input type="checkbox" ${t.checklistStates[c] ? 'checked' : ''} onchange="window.toggleCheck(${idx}, '${c.replace(/'/g, "\\'")}')" class="mt-1 w-5 h-5 rounded border-slate-300 text-red-600"><span class="text-sm font-bold ${t.checklistStates[c] ? 'text-green-800' : 'text-slate-600'}">${c}</span></label>`).join('')}</div>
+                        <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Instructor Feedback</label><textarea oninput="window.updateTaskFeedback(${idx}, this.value)" class="w-full bg-white border border-slate-200 p-4 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 transition-all min-h-[80px]">${t.feedback || ""}</textarea></div>
+                        <div class="pt-6 border-t flex items-center gap-3"><button onclick="window.state.current.tasks[${idx}].manualStatus = 'PASS'; window.renderTasks();" class="px-8 py-2 rounded-xl font-black text-xs uppercase transition-all ${(t.manualStatus === 'PASS' ? 'bg-green-600 text-white shadow-lg' : 'bg-white border')}">Pass</button><button onclick="window.state.current.tasks[${idx}].manualStatus = 'FAIL'; window.renderTasks();" class="px-8 py-2 rounded-xl font-black text-xs uppercase transition-all ${(t.manualStatus === 'FAIL' ? 'bg-red-600 text-white shadow-lg' : 'bg-white border')}">Fail</button></div>
                     </div>
                 </div>
             `).join('');
         };
 
-        // PDF Template Generators
-        const createAttemptHTML = (attempt) => `
-            <div style="padding: 40px; margin-bottom: 40px; border-bottom: 2px dashed #cbd5e1; page-break-after: always; background: white; color: #1e293b; font-family: 'Inter', sans-serif;">
-                <div style="border-bottom: 5px solid #dc2626; padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: flex-end;">
-                    <div>
-                        <h1 style="font-size: 28px; font-weight: 900; margin: 0; color: #0f172a;">SPC FIRE ACADEMY</h1>
-                        <p style="font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 2px;">Evaluation Performance Record</p>
-                    </div>
-                    <div style="text-align: right;">
-                        <p style="font-size: 9px; font-weight: 700; color: #94a3b8;">UID: ${attempt.internalId}</p>
-                    </div>
-                </div>
-                
-                <div style="display: flex; gap: 15px; margin-bottom: 30px;">
-                    <div style="flex: 1; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                        <p style="font-size: 8px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">Candidate</p>
-                        <p style="font-size: 18px; font-weight: 900; margin: 0;">${attempt.name}</p>
-                        <p style="font-size: 11px; font-weight: 600; color: #64748b;">ID: ${attempt.id} | Class: ${attempt.class}</p>
-                    </div>
-                    <div style="flex: 1; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; text-align: right;">
-                        <p style="font-size: 8px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">Session Detail</p>
-                        <p style="font-size: 18px; font-weight: 900; margin: 0;">${attempt.date}</p>
-                        <p style="font-size: 11px; font-weight: 600;">Status: <span style="color: ${attempt.finalStatus === 'PASS' ? '#16a34a' : '#dc2626'}">${attempt.finalStatus}</span> | Instructor: ${attempt.instructor}</p>
-                    </div>
-                </div>
+        // --- WORD EXPORT LOGIC ---
+        window.exportHTMLtoWord = (htmlContent, filename) => {
+            const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Word Export</title><style>body { font-family: sans-serif; }</style></head><body>`;
+            const footer = `</body></html>`;
+            const source = header + htmlContent + footer;
+            const blob = new Blob(['\ufeff', source], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename + ".doc";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
 
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead style="background: #f1f5f9;">
-                        <tr>
-                            <th style="text-align: left; padding: 12px; font-size: 10px; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Detailed Skill Task & Instructor Notes</th>
-                            <th style="text-align: center; padding: 12px; font-size: 10px; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Time</th>
-                            <th style="text-align: center; padding: 12px; font-size: 10px; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Result</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${attempt.tasks.map(t => `
-                            <tr>
-                                <td style="padding: 12px; border-bottom: 1px solid #f1f5f9;">
-                                    <p style="font-size: 12px; font-weight: 800; margin: 0;">${t.title}</p>
-                                    
-                                    <!-- Skill Checklist Summary -->
-                                    <div style="margin-top: 6px; font-size: 8px; color: #64748b; line-height: 1.4;">
-                                        ${t.checks.map(c => `
-                                            <span style="display: inline-block; margin-right: 8px; background: #f1f5f9; padding: 2px 5px; border-radius: 4px;">
-                                                <b style="color: ${t.checklistStates && t.checklistStates[c] ? '#16a34a' : '#94a3b8'}">
-                                                    ${t.checklistStates && t.checklistStates[c] ? '☑' : '☐'}
-                                                </b> ${c}
-                                            </span>
-                                        `).join('')}
-                                    </div>
-
-                                    ${t.feedback ? `<p style="font-size: 10px; font-weight: 600; font-style: italic; color: #dc2626; margin-top: 10px; border-left: 3px solid #dc2626; padding-left: 10px; background: #fff1f2; padding-top: 6px; padding-bottom: 6px; border-radius: 0 4px 4px 0;">INSTRUCTOR NOTES: ${t.feedback}</p>` : ''}
-                                </td>
-                                <td style="padding: 12px; text-align: center; font-size: 12px; font-weight: 600; font-family: monospace; border-bottom: 1px solid #f1f5f9; vertical-align: top;">${formatTime(t.time)}</td>
-                                <td style="padding: 12px; text-align: center; font-size: 12px; font-weight: 900; color: ${t.manualStatus === 'PASS' ? '#16a34a' : '#dc2626'}; border-bottom: 1px solid #f1f5f9; vertical-align: top;">${t.manualStatus}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
+        const createAttemptHTMLForWord = (a) => `
+            <div style="margin-bottom: 50px; border-bottom: 2px solid #000; padding: 20px;">
+                <h1 style="color: #dc2626; font-size: 24pt;">SPC FIRE ACADEMY</h1>
+                <p style="font-weight: bold; font-size: 10pt;">PERFORMANCE EVALUATION RECORD</p>
+                <hr>
+                <table style="width: 100%; margin-bottom: 20px;">
+                    <tr><td><b>Candidate:</b> ${a.name}</td><td style="text-align: right;"><b>Date:</b> ${a.date}</td></tr>
+                    <tr><td><b>ID:</b> ${a.id}</td><td style="text-align: right;"><b>Instructor:</b> ${a.instructor}</td></tr>
+                    <tr><td><b>Class:</b> ${a.class}</td><td style="text-align: right;"><b>Final Grade:</b> <span style="color: ${a.finalStatus === 'PASS' ? '#16a34a' : '#dc2626'}">${a.finalStatus}</span></td></tr>
                 </table>
-                
-                <div style="margin-top: 40px; font-size: 9px; color: #94a3b8; text-transform: uppercase;">
-                    Verified By ${attempt.instructor} on ${attempt.updatedAt.split('T')[0]}
-                </div>
+                <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
+                    <tr style="background-color: #f1f5f9;">
+                        <th style="border: 1px solid #000; padding: 10px; text-align: left;">Skill Task</th>
+                        <th style="border: 1px solid #000; padding: 10px; text-align: center;">Time</th>
+                        <th style="border: 1px solid #000; padding: 10px; text-align: center;">Result</th>
+                    </tr>
+                    ${a.tasks.map(t => `
+                        <tr>
+                            <td style="border: 1px solid #000; padding: 10px;">
+                                <b>${t.title}</b><br>
+                                <small>${t.checks.map(c => (t.checklistStates && t.checklistStates[c] ? " [X] " : " [ ] ") + c).join(', ')}</small>
+                                ${t.feedback ? `<p style="color: #dc2626; font-style: italic;">Note: ${t.feedback}</p>` : ''}
+                            </td>
+                            <td style="border: 1px solid #000; padding: 10px; text-align: center;">${formatTime(t.time)}</td>
+                            <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">${t.manualStatus}</td>
+                        </tr>
+                    `).join('')}
+                </table>
+                <p style="font-size: 8pt; color: #64748b;">Record ID: ${a.internalId}</p>
             </div>
         `;
 
-        window.generatePDFReport = async (attemptId) => {
-            const attempt = window.state.evals.find(e => e.internalId === attemptId);
-            if (!attempt) return;
-            const btn = document.getElementById(`pdf-btn-${attemptId}`);
-            if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Generating...';
-
-            const container = document.getElementById('pdf-render-zone');
-            container.innerHTML = `<div style="padding: 20px; background: white;">${createAttemptHTML(attempt)}</div>`;
-
-            const opt = {
-                margin: 0,
-                filename: `SPC_Record_${attempt.name.replace(/\s+/g, '_')}_${attempt.date}.pdf`,
-                image: { type: 'jpeg', quality: 1.0 },
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-            };
-
-            try {
-                // Ensure browser finishes rendering template literal to DOM
-                await new Promise(resolve => setTimeout(resolve, 500));
-                await html2pdf().set(opt).from(container).save();
-            } finally {
-                container.innerHTML = "";
-                if (btn) btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Report';
-            }
+        window.downloadAttemptAsWord = (id) => {
+            const a = window.state.evals.find(e => e.internalId === id);
+            if (a) window.exportHTMLtoWord(createAttemptHTMLForWord(a), `SPC_Record_${a.name.replace(/\s+/g, '_')}`);
         };
 
-        window.generateCandidateHistoryPDF = async (candidateId) => {
-            const attempts = window.state.evals.filter(e => e.id === candidateId).sort((a, b) => new Date(a.date) - new Date(b.date));
-            if (!attempts.length) return;
-            
-            const btn = document.getElementById(`full-pdf-${candidateId}`);
-            const original = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Compiling...';
-
-            const container = document.getElementById('pdf-render-zone');
-            container.innerHTML = `
-                <div style="padding: 40px; background: #0f172a; color: white; text-align: center; font-family: 'Inter', sans-serif;">
-                    <h1 style="font-size: 40px; font-weight: 900; margin: 0; letter-spacing: -2px;">PROGRESSION DOSSIER</h1>
-                    <p style="font-size: 12px; font-weight: 800; color: #ef4444; text-transform: uppercase; letter-spacing: 5px; margin-top: 10px;">SPC Fire Academy</p>
-                    <div style="margin-top: 40px; display: inline-block; text-align: left; background: rgba(255,255,255,0.1); padding: 30px; border-radius: 20px;">
-                        <p style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Candidate Name</p>
-                        <p style="font-size: 24px; font-weight: 900;">${attempts[0].name}</p>
-                        <p style="font-size: 10px; color: #94a3b8; text-transform: uppercase; margin-top: 15px;">Candidate Identification</p>
-                        <p style="font-size: 18px; font-weight: 600;">ID: ${candidateId}</p>
-                        <p style="font-size: 10px; color: #94a3b8; text-transform: uppercase; margin-top: 15px;">Total Evaluations</p>
-                        <p style="font-size: 18px; font-weight: 600;">${attempts.length} Cloud Records</p>
-                    </div>
-                </div>
-                ${attempts.map(createAttemptHTML).join('')}
-            `;
-
-            const opt = {
-                margin: 0,
-                filename: `SPC_Dossier_${attempts[0].name.replace(/\s+/g, '_')}.pdf`,
-                image: { type: 'jpeg', quality: 1.0 },
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-            };
-
-            try {
-                // Wait for the multi-page template to render
-                await new Promise(resolve => setTimeout(resolve, 800));
-                await html2pdf().set(opt).from(container).save();
-            } finally {
-                container.innerHTML = "";
-                btn.innerHTML = original;
-            }
+        window.downloadHistoryAsWord = (cid) => {
+            const atts = window.state.evals.filter(e => e.id === cid).sort((a, b) => new Date(a.date) - new Date(b.date));
+            if (!atts.length) return;
+            const coverPage = `<div style="text-align: center; margin-bottom: 50px;"><h1 style="font-size: 36pt; color: #0f172a;">PROGRESSION DOSSIER</h1><h2 style="color: #dc2626;">St. Petersburg College Fire Academy</h2><br><br><table style="width: 50%; margin-left: 25%;"><tr><td><b>Name:</b></td><td>${atts[0].name}</td></tr><tr><td><b>ID:</b></td><td>${cid}</td></tr><tr><td><b>Records:</b></td><td>${atts.length}</td></tr></table></div><br clear="all" style="page-break-before:always">`;
+            window.exportHTMLtoWord(coverPage + atts.map(createAttemptHTMLForWord).join('<br clear="all" style="page-break-before:always">'), `SPC_Dossier_${atts[0].name.replace(/\s+/g, '_')}`);
         };
 
         window.onload = () => {
             const instr = localStorage.getItem('spc_instructor');
             if (instr) document.getElementById('instructor-name-input').value = instr;
-            
-            // Populate our new preset dropdowns
-            populatePresetSelects();
-            
             initAuth();
             window.prepareNewEvaluation();
+            if ('serviceWorker' in navigator && (location.protocol === 'http:' || location.protocol === 'https:')) {
+                navigator.serviceWorker.register('sw.js').catch(err => console.log("PWA SW Warning: ", err));
+            }
         };
     </script>
 </body>
