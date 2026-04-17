@@ -1,9 +1,10 @@
 /**
  * SPC Fire Academy - Service Worker
- * Handles offline caching for the PWA shell and external assets.
+ * Version: v7.0.0 (Cloud Archive & EOD Enabled)
+ * Handles offline caching for the PWA shell.
  */
 
-const CACHE_NAME = 'spc-fire-academy-v5';
+const CACHE_NAME = 'spc-fire-academy-v7';
 const ASSETS_TO_CACHE = [
   './index.html',
   './manifest.json',
@@ -41,9 +42,8 @@ self.addEventListener('activate', (event) => {
 });
 
 // Fetch Event: Network-first strategy with cache fallback
-// Ideal for apps requiring real-time cloud data but needing UI availability offline
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests
+  // Only handle GET requests for caching
   if (event.request.method !== 'GET') return;
 
   event.respondWith(
