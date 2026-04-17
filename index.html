@@ -135,6 +135,27 @@
                     <h2 class="font-black uppercase text-xs tracking-widest text-slate-400">Entry Form</h2>
                     <span id="edit-badge" class="hidden px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-widest">Updating Record</span>
                 </div>
+
+                <!-- Dropdown Quick Selection -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 pb-8 border-b border-slate-100">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-2">
+                            <i class="fa-solid fa-user-tie"></i> Quick Select Instructor
+                        </label>
+                        <select id="quick-instructor-select" onchange="autoFillInstructor(this.value)" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold text-sm focus:border-red-600 transition-colors">
+                            <option value="">-- Choose Pre-recorded Instructor --</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-2">
+                            <i class="fa-solid fa-user-graduate"></i> Quick Select Candidate
+                        </label>
+                        <select id="quick-candidate-select" onchange="autoFillCandidate(this.value)" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold text-sm focus:border-red-600 transition-colors">
+                            <option value="">-- Choose Pre-recorded Candidate --</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Candidate Name</label><input type="text" id="eval-name" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold"></div>
                     <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Class ID</label><input type="text" id="eval-class" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold"></div>
@@ -185,6 +206,22 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // APP ROSTER CONFIG
+        const PRESET_INSTRUCTORS = [
+            "Mc Claver", 
+            "Dean", 
+            "Petrone", 
+            "bodine", 
+            "Burford"
+        ];
+
+        const PRESET_CANDIDATES = [
+            { name: "John Doe", id: "C-1001", class: "ALPHA-24" },
+            { name: "Jane Smith", id: "C-1002", class: "ALPHA-24" },
+            { name: "Mike Johnson", id: "C-1003", class: "BETA-24" },
+            { name: "Sarah Williams", id: "C-1004", class: "BETA-24" }
+        ];
 
         // APP TASKS CONFIG
         const TASKS = [
@@ -268,6 +305,39 @@
         };
 
         const formatTime = s => `${Math.floor(s/60)}:${(s%60).toString().padStart(2, '0')}`;
+
+        // ROSTER POPULATION LOGIC
+        const populatePresetSelects = () => {
+            const instSelect = document.getElementById('quick-instructor-select');
+            const candSelect = document.getElementById('quick-candidate-select');
+            
+            if(instSelect) {
+                instSelect.innerHTML = '<option value="">-- Choose Pre-recorded Instructor --</option>' + 
+                    PRESET_INSTRUCTORS.map(i => `<option value="${i}">${i}</option>`).join('');
+            }
+            
+            if(candSelect) {
+                candSelect.innerHTML = '<option value="">-- Choose Pre-recorded Candidate --</option>' + 
+                    PRESET_CANDIDATES.map(c => `<option value="${c.id}">${c.name} (ID: ${c.id})</option>`).join('');
+            }
+        };
+
+        window.autoFillInstructor = (name) => {
+            if(!name) return;
+            document.getElementById('eval-instructor').value = name;
+            // Also sync the global instructor input
+            document.getElementById('instructor-name-input').value = name;
+            localStorage.setItem('spc_instructor', name);
+        };
+
+        window.autoFillCandidate = (id) => {
+            const cand = PRESET_CANDIDATES.find(c => c.id === id);
+            if(cand) {
+                document.getElementById('eval-name').value = cand.name;
+                document.getElementById('eval-id').value = cand.id;
+                document.getElementById('eval-class').value = cand.class;
+            }
+        };
 
         window.saveEvaluation = async () => {
             if (!window.state.user) return alert("System not connected.");
@@ -484,6 +554,11 @@
             document.getElementById('eval-instructor').value = c.instructor || "";
             document.getElementById('eval-id').value = c.id || "";
             document.getElementById('edit-badge').classList.toggle('hidden', !window.state.editingId);
+            
+            // Reset dropdowns to default when switching entries
+            document.getElementById('quick-instructor-select').value = "";
+            document.getElementById('quick-candidate-select').value = "";
+
             window.renderTasks();
         };
 
@@ -605,7 +680,7 @@
                 <table style="width: 100%; border-collapse: collapse;">
                     <thead style="background: #f1f5f9;">
                         <tr>
-                            <th style="text-align: left; padding: 12px; font-size: 10px; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Skill Task</th>
+                            <th style="text-align: left; padding: 12px; font-size: 10px; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Detailed Skill Task & Instructor Notes</th>
                             <th style="text-align: center; padding: 12px; font-size: 10px; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Time</th>
                             <th style="text-align: center; padding: 12px; font-size: 10px; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Result</th>
                         </tr>
@@ -615,14 +690,30 @@
                             <tr>
                                 <td style="padding: 12px; border-bottom: 1px solid #f1f5f9;">
                                     <p style="font-size: 12px; font-weight: 800; margin: 0;">${t.title}</p>
-                                    ${t.feedback ? `<p style="font-size: 10px; font-style: italic; color: #64748b; margin-top: 4px;">Feedback: ${t.feedback}</p>` : ''}
+                                    
+                                    <!-- Skill Checklist Summary -->
+                                    <div style="margin-top: 6px; font-size: 8px; color: #64748b; line-height: 1.4;">
+                                        ${t.checks.map(c => `
+                                            <span style="display: inline-block; margin-right: 8px; background: #f1f5f9; padding: 2px 5px; border-radius: 4px;">
+                                                <b style="color: ${t.checklistStates && t.checklistStates[c] ? '#16a34a' : '#94a3b8'}">
+                                                    ${t.checklistStates && t.checklistStates[c] ? '☑' : '☐'}
+                                                </b> ${c}
+                                            </span>
+                                        `).join('')}
+                                    </div>
+
+                                    ${t.feedback ? `<p style="font-size: 10px; font-weight: 600; font-style: italic; color: #dc2626; margin-top: 10px; border-left: 3px solid #dc2626; padding-left: 10px; background: #fff1f2; padding-top: 6px; padding-bottom: 6px; border-radius: 0 4px 4px 0;">INSTRUCTOR NOTES: ${t.feedback}</p>` : ''}
                                 </td>
-                                <td style="padding: 12px; text-align: center; font-size: 12px; font-weight: 600; font-family: monospace; border-bottom: 1px solid #f1f5f9;">${formatTime(t.time)}</td>
-                                <td style="padding: 12px; text-align: center; font-size: 12px; font-weight: 900; color: ${t.manualStatus === 'PASS' ? '#16a34a' : '#dc2626'}; border-bottom: 1px solid #f1f5f9;">${t.manualStatus}</td>
+                                <td style="padding: 12px; text-align: center; font-size: 12px; font-weight: 600; font-family: monospace; border-bottom: 1px solid #f1f5f9; vertical-align: top;">${formatTime(t.time)}</td>
+                                <td style="padding: 12px; text-align: center; font-size: 12px; font-weight: 900; color: ${t.manualStatus === 'PASS' ? '#16a34a' : '#dc2626'}; border-bottom: 1px solid #f1f5f9; vertical-align: top;">${t.manualStatus}</td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
+                
+                <div style="margin-top: 40px; font-size: 9px; color: #94a3b8; text-transform: uppercase;">
+                    Verified By ${attempt.instructor} on ${attempt.updatedAt.split('T')[0]}
+                </div>
             </div>
         `;
 
@@ -633,7 +724,7 @@
             if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Generating...';
 
             const container = document.getElementById('pdf-render-zone');
-            container.innerHTML = `<div style="padding: 20px;">${createAttemptHTML(attempt)}</div>`;
+            container.innerHTML = `<div style="padding: 20px; background: white;">${createAttemptHTML(attempt)}</div>`;
 
             const opt = {
                 margin: 0,
@@ -644,6 +735,8 @@
             };
 
             try {
+                // Ensure browser finishes rendering template literal to DOM
+                await new Promise(resolve => setTimeout(resolve, 300));
                 await html2pdf().set(opt).from(container).save();
             } finally {
                 container.innerHTML = "";
@@ -685,6 +778,8 @@
             };
 
             try {
+                // Wait for the multi-page template to render
+                await new Promise(resolve => setTimeout(resolve, 500));
                 await html2pdf().set(opt).from(container).save();
             } finally {
                 container.innerHTML = "";
@@ -695,6 +790,10 @@
         window.onload = () => {
             const instr = localStorage.getItem('spc_instructor');
             if (instr) document.getElementById('instructor-name-input').value = instr;
+            
+            // Populate our new preset dropdowns
+            populatePresetSelects();
+            
             initAuth();
             window.prepareNewEvaluation();
         };
