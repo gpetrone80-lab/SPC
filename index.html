@@ -736,7 +736,7 @@
 
             try {
                 // Ensure browser finishes rendering template literal to DOM
-                await new Promise(resolve => setTimeout(resolve, 300));
+                await new Promise(resolve => setTimeout(resolve, 500));
                 await html2pdf().set(opt).from(container).save();
             } finally {
                 container.innerHTML = "";
@@ -779,7 +779,7 @@
 
             try {
                 // Wait for the multi-page template to render
-                await new Promise(resolve => setTimeout(resolve, 500));
+                await new Promise(resolve => setTimeout(resolve, 800));
                 await html2pdf().set(opt).from(container).save();
             } finally {
                 container.innerHTML = "";
