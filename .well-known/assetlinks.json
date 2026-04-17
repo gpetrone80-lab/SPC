@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.gpetrone80_lab.twa",
+        "sha256_cert_fingerprints": ["C6:8B:81:03:64:58:3F:49:DF:EB:86:66:68:C3:C6:A7:22:C8:72:3A:22:3D:C8:30:D4:93:82:F4:4B:6A:38:A4"]
+      }
+    }]
