@@ -248,6 +248,8 @@
                     <div id="resume-badge" class="hidden px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-[10px] font-black uppercase">Resumed from Memory</div>
                 </div>
 
+                <div id="editing-banner" class="hidden px-4 py-3 rounded-xl bg-amber-100 text-amber-800 text-xs font-bold mb-6"></div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 pb-8 border-b border-slate-100">
                     <div class="space-y-1">
                         <label class="text-[10px] font-black text-red-600 uppercase tracking-widest">Instructor Select</label>
@@ -378,6 +380,27 @@
             </div>
         </section>
     </main>
+
+
+    <!-- ===== v2.2 CORRECT STUDENT (reassign) modal ===== -->
+    <div id="reassign-modal" class="no-print" style="display:none;position:fixed;inset:0;z-index:90;background:rgba(11,35,64,.65);align-items:center;justify-content:center;padding:16px">
+        <div style="background:#fff;border-radius:20px;max-width:460px;width:100%;padding:24px;box-shadow:0 24px 60px rgba(0,0,0,.35)">
+            <h3 style="font-weight:900;font-size:17px;color:#0b2340">Correct Student — move this record</h3>
+            <p id="reassign-summary" class="text-sm font-bold text-slate-500" style="margin-top:6px"></p>
+            <label style="font-size:10px;font-weight:900;color:#64748b;text-transform:uppercase;letter-spacing:.08em;display:block;margin-top:14px">Correct student (from roster)</label>
+            <select id="reassign-select" onchange="reassignPick()" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:12px;font-weight:700;margin-top:4px"></select>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px">
+                <div><label style="font-size:10px;font-weight:900;color:#64748b;text-transform:uppercase">Name</label><input id="reassign-name" type="text" style="width:100%;padding:11px;border:2px solid #e2e8f0;border-radius:12px;font-weight:700"></div>
+                <div><label style="font-size:10px;font-weight:900;color:#64748b;text-transform:uppercase">ID #</label><input id="reassign-id" type="text" style="width:100%;padding:11px;border:2px solid #e2e8f0;border-radius:12px;font-weight:700"></div>
+                <div><label style="font-size:10px;font-weight:900;color:#64748b;text-transform:uppercase">Class</label><input id="reassign-class" type="text" style="width:100%;padding:11px;border:2px solid #e2e8f0;border-radius:12px;font-weight:700"></div>
+            </div>
+            <p class="text-[11px] font-bold text-slate-400" style="margin-top:10px">Only the student's name, ID # and class change. Times, checklists, notes and the PASS/FAIL stay exactly as recorded — pass rates and reports recalculate from the record itself, so nothing is double-counted.</p>
+            <div style="display:flex;gap:8px;margin-top:16px">
+                <button onclick="closeReassign()" style="flex:1;padding:13px;border-radius:12px;background:#eef2f7;font-weight:900;border:0">CANCEL</button>
+                <button onclick="applyReassign()" id="reassign-save" style="flex:2;padding:13px;border-radius:12px;background:#d97706;color:#fff;font-weight:900;border:0">MOVE RECORD TO THIS STUDENT</button>
+            </div>
+        </div>
+    </div>
 
     <script type="module">
         import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -768,8 +791,12 @@
                                         <span class="px-4 py-1 rounded-full bg-slate-100 text-slate-500 font-black text-[10px] uppercase">Attempt #${cand.attempts.length - idx}</span>
                                         <h4 class="font-black text-slate-800 uppercase tracking-tight">${attempt.date}</h4>
                                         <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${attempt.finalStatus === 'PASS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${attempt.finalStatus}</span>
+                                        ${attempt.lastCorrection ? `<span class="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase">Corrected: was ${attempt.lastCorrection.fromName} (${attempt.lastCorrection.fromId})</span>` : ''}
                                     </div>
-                                    <button onclick="editEval('${attempt.internalId}')" class="staff-only p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><i class="fa-solid fa-edit"></i></button>
+                                    <div class="flex items-center gap-2">
+                                        <button onclick="openReassign('${attempt.internalId}')" class="staff-only px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase transition-colors"><i class="fa-solid fa-user-pen mr-1"></i> Correct Student</button>
+                                        <button onclick="editEval('${attempt.internalId}')" class="staff-only p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><i class="fa-solid fa-edit"></i></button>
+                                    </div>
                                 </div>
                                 <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
                                     ${attempt.tasks.map(t => `
@@ -1047,6 +1074,13 @@
 
         window.updateFormInputs = () => {
             const c = window.state.current;
+            const eb = document.getElementById('editing-banner');
+            if (eb) {
+                if (window.state.editingId) {
+                    eb.classList.remove('hidden');
+                    eb.innerHTML = '<i class="fa-solid fa-pen mr-1"></i> EDITING an existing record (' + (c.date || '') + ') currently logged to <b>' + (c.name || '') + ' (' + (c.id || '') + ')</b>. If it belongs to a different student, cancel and use <b>Correct Student</b> instead — or change the Candidate fields here and SAVE: the record moves to that student and the old student loses it.';
+                } else { eb.classList.add('hidden'); eb.innerHTML = ''; }
+            }
             const nameEl = document.getElementById('eval-name');
             const classEl = document.getElementById('eval-class');
             const dateEl = document.getElementById('eval-date');
@@ -1154,12 +1188,61 @@
                     <tr><td class="px-6 py-4"><b>${e.name}</b><br><span class="text-[10px] text-slate-400">${e.date}</span></td>
                     <td class="px-6 py-4 text-xs font-bold">${e.instructor}</td>
                     <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-[9px] font-black uppercase ${e.finalStatus === 'PASS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${e.finalStatus}</span></td>
-                    <td class="px-6 py-4 text-right"><button onclick="deleteEval('${e.internalId}')" class="staff-only text-red-300 hover:text-red-600"><i class="fa-solid fa-trash"></i></button></td></tr>
+                    <td class="px-6 py-4 text-right"><button onclick="openReassign('${e.internalId}')" title="Move this record to the correct student" class="staff-only px-3 py-2 mr-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase"><i class="fa-solid fa-user-pen"></i> Correct Student</button><button onclick="deleteEval('${e.internalId}')" class="staff-only text-red-300 hover:text-red-600"><i class="fa-solid fa-trash"></i></button></td></tr>
                 `).join('');
             }
         };
 
         window.deleteEval = async (id) => { if (confirm("Delete permanently?")) await deleteDoc(doc(window.state.db, 'artifacts', appId, 'public', 'data', 'evaluations', id)); };
+
+        /* ----- v2.2 Correct Student: move a record to the right student ----- */
+        window.__reassignId = null;
+        window.openReassign = (internalId) => {
+            if (!isStaff()) return;
+            const rec = window.state.evals.find(e => e.internalId === internalId);
+            if (!rec) return;
+            window.__reassignId = internalId;
+            document.getElementById('reassign-summary').innerText = 'Currently logged to: ' + rec.name + ' (' + rec.id + ') · ' + rec.date + ' · ' + rec.finalStatus;
+            const sel = document.getElementById('reassign-select');
+            const cands = (window.state.roster.candidates || []);
+            sel.innerHTML = '<option value="">— Pick the correct student —</option>' + cands.map(c => `<option value="${c.internalId}">${c.name} — ${c.id}${c.class ? ' · Class ' + c.class : ''}</option>`).join('');
+            document.getElementById('reassign-name').value = '';
+            document.getElementById('reassign-id').value = '';
+            document.getElementById('reassign-class').value = '';
+            const m = document.getElementById('reassign-modal'); m.style.display = 'flex';
+        };
+        window.reassignPick = () => {
+            const sel = document.getElementById('reassign-select');
+            const cand = (window.state.roster.candidates || []).find(c => c.internalId === sel.value);
+            if (!cand) return;
+            document.getElementById('reassign-name').value = cand.name || '';
+            document.getElementById('reassign-id').value = cand.id || '';
+            document.getElementById('reassign-class').value = cand.class || '';
+        };
+        window.closeReassign = () => { document.getElementById('reassign-modal').style.display = 'none'; window.__reassignId = null; };
+        window.applyReassign = async () => {
+            const rec = window.state.evals.find(e => e.internalId === window.__reassignId);
+            if (!rec) return window.closeReassign();
+            const name = document.getElementById('reassign-name').value.trim();
+            const id = document.getElementById('reassign-id').value.trim();
+            const cls = document.getElementById('reassign-class').value.trim();
+            if (!name || !id) return alert('Pick the correct student from the roster, or type their name and ID #.');
+            if (id === rec.id && name === rec.name) return alert('That is the student this record is already logged to.');
+            if (!confirm('Move this ' + rec.date + ' record (' + rec.finalStatus + ') from ' + rec.name + ' (' + rec.id + ') to ' + name + ' (' + id + ')?\n\nTimes, checklists and grade stay exactly as recorded.')) return;
+            const btn = document.getElementById('reassign-save'); btn.disabled = true; btn.innerText = 'MOVING...';
+            try {
+                await updateDoc(dataDoc('evaluations', rec.internalId), {
+                    name, id, class: cls,
+                    updatedAt: new Date().toISOString(),
+                    lastCorrection: { fromName: rec.name, fromId: rec.id, toName: name, toId: id, by: (window.state.profile && (window.state.profile.name || window.state.profile.loginEmail)) || '', at: new Date().toISOString() }
+                });
+                window.closeReassign();
+                alert('Corrected \u2713 — the record now belongs to ' + name + ' (' + id + '). ' + rec.name + ' no longer has it, and pass rates / reports already reflect the move.');
+            } catch (e) {
+                console.error(e);
+                alert('Could not move the record — check your connection and try again. Nothing was changed.');
+            } finally { btn.disabled = false; btn.innerText = 'MOVE RECORD TO THIS STUDENT'; }
+        };
 
         window.exportFilteredCSV = () => {
             const rows0 = window.__filteredEvals || window.state.evals;
