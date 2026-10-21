@@ -6,11 +6,12 @@
     <title>SPC Fire Academy - Performance Tracker</title>
     
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#dc2626">
+    <meta name="theme-color" content="#0b2340">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="SPC Fire">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/785/785116.png">
+    <link rel="apple-touch-icon" href="spc-logo.jpg">
+    <link rel="icon" href="spc-logo.jpg">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -32,16 +33,64 @@
         @media print { .no-print { display: none !important; } }
         .folder-card { transition: all 0.2s ease; border: 2px solid transparent; }
         .folder-card:hover { border-color: #dc2626; transform: translateY(-2px); }
+    
+        /* ===== v2 HYBRID (A Spartan Command + C Student Timeline + B Big Timers) ===== */
+        aside { background-color: #0b2340 !important; border-color: #14365e !important; }
+        .sidebar-link.active { background-color: #c9a227 !important; color: #111 !important; box-shadow: 0 10px 15px -3px rgba(201,162,39,.35); }
+        .bigtimer { font-size: 3.6rem !important; line-height: 1 !important; padding: 1.1rem 1.6rem !important; }
+        .bigpf { padding-top: 1.25rem !important; padding-bottom: 1.25rem !important; font-size: 1rem !important; }
+        body:not(.is-admin) .admin-only { display: none !important; }
+        body.is-student .staff-only { display: none !important; }
+        body.is-student #eod-card { display: none !important; }
+        body:not(.is-admin) #nav-accounts { display: none !important; }
+        #bottomnav { display: none; }
+        @media (max-width: 767px) {
+            #bottomnav { display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 60; background: #0b2340; padding: 8px 6px calc(8px + env(safe-area-inset-bottom)); justify-content: space-around; }
+            #bottomnav button { color: #cbd5e1; font-weight: 800; font-size: 11px; padding: 9px 10px; border-radius: 10px; background: transparent; border: 0; }
+            #bottomnav button.bnav-active { background: #c9a227; color: #111; }
+            body.is-student #bottomnav .staff-only { display: none !important; }
+            main { padding-bottom: 96px !important; }
+        }
+        #auth-overlay input { color: #0f172a; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col md:flex-row">
+    <!-- ===== v2 LOGIN GATE ===== -->
+    <div id="auth-overlay" class="no-print" style="position:fixed;inset:0;z-index:100;background:linear-gradient(160deg,#0b2340,#14365e 60%,#1b4f7a);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto">
+        <div style="background:#fff;border-radius:22px;max-width:430px;width:100%;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,.35)">
+            <img src="spc-logo.jpg" alt="SPC" style="width:84px;height:84px;object-fit:contain;display:block;margin:0 auto">
+            <h1 style="text-align:center;font-weight:900;font-size:21px;margin-top:8px;color:#0b2340">SPC FIRE COLLEGE</h1>
+            <p style="text-align:center;color:#64748b;font-size:12px;font-weight:600">Big Two Evaluation Tracker — St. Petersburg College<br>Sign in with your own ID &amp; password</p>
+            <div id="login-form" style="margin-top:16px">
+                <label style="font-size:10px;font-weight:900;color:#64748b;text-transform:uppercase;letter-spacing:.08em">Login ID or Email</label>
+                <input id="login-id" type="text" autocomplete="username" placeholder="C-101  ·  INST-07  ·  your email" style="width:100%;padding:13px;border:2px solid #e2e8f0;border-radius:12px;font-weight:700;margin:4px 0 10px">
+                <label style="font-size:10px;font-weight:900;color:#64748b;text-transform:uppercase;letter-spacing:.08em">Password</label>
+                <input id="login-pass" type="password" autocomplete="current-password" placeholder="Your unique password" style="width:100%;padding:13px;border:2px solid #e2e8f0;border-radius:12px;font-weight:700;margin:4px 0 12px" onkeydown="if(event.key==='Enter')spcLogin()">
+                <button onclick="spcLogin()" id="login-btn" style="width:100%;background:#0b2340;color:#fff;padding:15px;border-radius:12px;font-weight:900;font-size:14px;border:0">SIGN IN</button>
+                <p id="login-msg" style="color:#b42318;font-size:12px;font-weight:700;margin-top:10px;text-align:center"></p>
+                <p style="color:#94a3b8;font-size:11px;text-align:center;margin-top:6px">Students: use the ID + password your instructor gave you.<br>You will only ever see your own records.</p>
+            </div>
+            <div id="setup-form" style="display:none;margin-top:16px;border-top:2px dashed #e2e8f0;padding-top:16px">
+                <h3 style="font-weight:900;color:#0b2340;font-size:14px;text-align:center">FIRST RUN — CREATE MASTER ADMIN</h3>
+                <p style="color:#64748b;font-size:11px;text-align:center;margin:4px 0 10px">No admin account exists yet. Create it once — this is the account that adds/removes instructors and students.</p>
+                <label style="font-size:10px;font-weight:900;color:#64748b;text-transform:uppercase">Admin Email</label>
+                <input id="setup-email" type="email" value="gpetrone80@gmail.com" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:12px;font-weight:700;margin:4px 0 8px">
+                <label style="font-size:10px;font-weight:900;color:#64748b;text-transform:uppercase">Choose Admin Password (8+ characters)</label>
+                <input id="setup-pass" type="password" autocomplete="new-password" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:12px;font-weight:700;margin:4px 0 8px">
+                <input id="setup-pass2" type="password" autocomplete="new-password" placeholder="Repeat password" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:12px;font-weight:700;margin:0 0 12px">
+                <button onclick="spcSetupAdmin()" id="setup-btn" style="width:100%;background:#c9a227;color:#111;padding:14px;border-radius:12px;font-weight:900;font-size:14px;border:0">CREATE MASTER ADMIN</button>
+                <p id="setup-msg" style="color:#b42318;font-size:12px;font-weight:700;margin-top:10px;text-align:center"></p>
+            </div>
+        </div>
+    </div>
+
 
     <aside class="no-print w-64 bg-slate-900 text-white flex-shrink-0 h-screen sticky top-0 hidden md:flex flex-col border-r border-slate-800">
         <div class="p-6 border-b border-slate-800 flex items-center gap-3">
-            <div class="bg-red-600 p-2 rounded-lg"><i class="fa-solid fa-fire-extinguisher text-white text-xl"></i></div>
+            <img src="spc-logo.jpg" class="w-11 h-11 rounded-lg bg-white p-0.5 object-contain" alt="SPC">
             <div>
-                <h1 class="font-black text-lg leading-none uppercase tracking-tighter">SPC FIRE</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Candidate Tracking</p>
+                <h1 class="font-black text-lg leading-none uppercase tracking-tighter">SPC FIRE COLLEGE</h1>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Big Two Tracking</p>
             </div>
         </div>
         <nav class="flex-1 p-4 space-y-2 mt-4">
@@ -58,7 +107,10 @@
                 <i class="fa-solid fa-folder-open w-5"></i> Academy Roster
             </button>
             <button onclick="switchTab('database')" id="nav-database" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-slate-400 hover:bg-slate-800 hover:text-white text-left">
-                <i class="fa-solid fa-users w-5"></i> Raw Database
+                <i class="fa-solid fa-users w-5"></i> <span id="nav-database-label">Reports</span>
+            </button>
+            <button onclick="switchTab('accounts')" id="nav-accounts" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-slate-400 hover:bg-slate-800 hover:text-white text-left">
+                <i class="fa-solid fa-key w-5"></i> Accounts (Admin)
             </button>
         </nav>
         <div class="p-4 border-t border-slate-800">
@@ -70,15 +122,22 @@
                 <div class="flex items-center gap-2">
                     <div id="sync-indicator" class="w-2 h-2 rounded-full bg-slate-500"></div>
                     <span id="sync-status" class="text-xs font-bold text-slate-300">Connecting...</span>
+                    <span id="sync-pending" class="hidden text-[9px] font-black uppercase bg-amber-500 text-white px-2 py-0.5 rounded-full">Pending upload</span>
                 </div>
+            </div>
+            <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 mt-3">
+                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Signed in</p>
+                <p id="user-name" class="text-xs font-black text-white mt-1">—</p>
+                <p id="user-role" class="text-[10px] font-bold text-slate-400 uppercase">—</p>
+                <button onclick="spcLogout()" class="mt-2 text-[10px] font-black uppercase text-amber-400 hover:underline">Sign out</button>
             </div>
         </div>
     </aside>
 
     <div class="md:hidden no-print bg-slate-900 p-4 flex justify-between items-center sticky top-0 z-50">
         <div class="flex items-center gap-2">
-            <div class="bg-red-600 p-1.5 rounded-lg"><i class="fa-solid fa-fire-extinguisher text-white"></i></div>
-            <span class="text-white font-black text-sm uppercase tracking-tighter">SPC FIRE</span>
+            <img src="spc-logo.jpg" class="w-8 h-8 rounded-lg bg-white p-0.5 object-contain" alt="SPC">
+            <span class="text-white font-black text-sm uppercase tracking-tighter">SPC FIRE COLLEGE</span>
         </div>
         <div class="flex gap-4">
             <button onclick="switchTab('dashboard')" class="text-white text-lg"><i class="fa-solid fa-chart-pie"></i></button>
@@ -86,6 +145,14 @@
             <button onclick="switchTab('tracker')" class="text-white text-lg"><i class="fa-solid fa-magnifying-glass"></i></button>
         </div>
     </div>
+
+    <nav id="bottomnav" class="no-print">
+            <button data-bnav="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
+            <button data-bnav="tracker" onclick="switchTab('tracker')">History</button>
+            <button data-bnav="evaluation" class="staff-only" onclick="prepareNewEvaluation()">+ Eval</button>
+            <button data-bnav="roster" class="staff-only" onclick="switchTab('roster')">Roster</button>
+            <button data-bnav="database" onclick="switchTab('database')">Reports</button>
+        </nav>
 
     <main class="flex-1 p-4 md:p-10 overflow-y-auto max-h-screen custom-scrollbar">
         <header class="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 no-print">
@@ -98,14 +165,15 @@
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Instructor</p>
                     <input type="text" id="instructor-name-input" oninput="localStorage.setItem('spc_instructor', this.value)" placeholder="Your Name" class="text-sm font-black text-slate-800 outline-none w-full md:w-32">
                 </div>
-                <button onclick="prepareNewEvaluation()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-2">
+                <span id="role-chip" class="hidden md:inline-block px-3 py-2 rounded-full bg-[#0b2340] text-white text-[10px] font-black uppercase tracking-widest"></span>
+                <button id="new-entry-btn" onclick="prepareNewEvaluation()" class="staff-only bg-[#c9a227] hover:bg-[#b08d1f] text-slate-900 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-2">
                     <i class="fa-solid fa-plus"></i> NEW ENTRY
                 </button>
             </div>
         </header>
 
         <section id="tab-dashboard" class="tab-content active space-y-6 fade-in">
-            <div class="bg-amber-50 border-2 border-amber-200 p-6 rounded-3xl flex flex-col md:flex-row justify-between items-center gap-4">
+            <div id="eod-card" class="bg-amber-50 border-2 border-amber-200 p-6 rounded-3xl flex flex-col md:flex-row justify-between items-center gap-4">
                 <div class="text-center md:text-left flex-1">
                     <h4 class="text-amber-800 font-black uppercase text-sm tracking-tighter flex items-center justify-center md:justify-start gap-2">
                         <i class="fa-solid fa-file-shield"></i> End of Day Wrap-up
@@ -157,11 +225,16 @@
         </section>
 
         <section id="tab-tracker" class="tab-content space-y-8 fade-in">
-            <div class="bg-slate-900 p-8 rounded-3xl shadow-xl">
+            <div id="tracker-head" class="bg-[#0b2340] p-8 rounded-3xl shadow-xl">
                 <h3 class="text-white font-black text-xl uppercase mb-4 tracking-tighter flex items-center gap-2">
                     <i class="fa-solid fa-magnifying-glass text-red-500"></i> Candidate Search
                 </h3>
-                <input type="text" id="tracker-search" oninput="renderTracker()" placeholder="Search Name, ID, or Class Number..." class="w-full p-4 rounded-2xl bg-slate-800 border-2 border-slate-700 text-white font-bold outline-none focus:border-red-600 transition-all">
+                <input type="text" id="tracker-search" oninput="renderTracker()" placeholder="Search Name, ID, or Class Number..." class="w-full p-4 rounded-2xl bg-slate-800 border-2 border-slate-700 text-white font-bold outline-none focus:border-[#c9a227] transition-all">
+                <div class="flex flex-col md:flex-row gap-2 mt-3">
+                    <input type="date" id="tracker-from" onchange="renderTracker()" class="flex-1 p-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white font-bold outline-none">
+                    <input type="date" id="tracker-to" onchange="renderTracker()" class="flex-1 p-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white font-bold outline-none">
+                    <button onclick="document.getElementById('tracker-from').value='';document.getElementById('tracker-to').value='';renderTracker()" class="px-4 py-3 rounded-xl bg-slate-700 text-white font-black text-[10px] uppercase">All dates</button>
+                </div>
             </div>
             <div id="tracker-results" class="space-y-12"></div>
         </section>
@@ -221,7 +294,7 @@
                         <h3 class="font-black uppercase tracking-tighter text-xl">Instructor Directory</h3>
                     </div>
                     <div class="p-6 space-y-4">
-                        <div class="flex gap-2">
+                        <div class="flex gap-2 admin-only">
                             <input type="text" id="new-instructor-name" placeholder="Name..." class="flex-1 p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold">
                             <button onclick="addRosterItem('instructors')" class="bg-red-600 text-white px-4 py-3 rounded-xl hover:bg-red-700"><i class="fa-solid fa-user-plus"></i></button>
                         </div>
@@ -234,7 +307,7 @@
                         <h3 class="font-black uppercase tracking-tighter text-xl">Student Directory</h3>
                     </div>
                     <div class="p-6 space-y-4">
-                        <div class="space-y-2">
+                        <div class="space-y-2 admin-only">
                             <input type="text" id="new-candidate-name" placeholder="Student Name..." class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold">
                             <div class="flex gap-2">
                                 <input type="text" id="new-candidate-id" placeholder="ID (C-101)..." class="flex-1 p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold">
@@ -259,6 +332,13 @@
                         <i class="fa-solid fa-file-csv"></i> DOWNLOAD ALL CSV
                     </button>
                 </div>
+                <div class="flex flex-col md:flex-row gap-2 mt-4">
+                    <input type="date" id="db-from" onchange="renderDatabase()" class="flex-1 p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold text-sm">
+                    <input type="date" id="db-to" onchange="renderDatabase()" class="flex-1 p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold text-sm">
+                    <select id="db-status" onchange="renderDatabase()" class="flex-1 p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold text-sm"><option value="">All results</option><option value="PASS">PASS only</option><option value="FAIL">FAIL only</option></select>
+                    <button onclick="exportFilteredCSV()" class="bg-[#0b2340] text-white px-5 py-3 rounded-xl font-black text-[10px] uppercase whitespace-nowrap">Export filtered CSV</button>
+                </div>
+                <p id="report-summary" class="text-[11px] font-bold text-slate-400 mt-3"></p>
             </div>
             <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
                  <table class="w-full text-left">
@@ -269,12 +349,38 @@
                 </table>
             </div>
         </section>
+
+        <section id="tab-accounts" class="tab-content fade-in space-y-6">
+            <div class="bg-white rounded-3xl shadow-xl border-t-8 border-[#c9a227] p-8">
+                <h3 class="font-black uppercase tracking-tighter text-xl text-slate-900">Login Accounts — Master Admin</h3>
+                <p class="text-slate-500 text-xs font-bold mt-1">Create a unique password for each instructor or student. Students sign in with their Candidate ID (e.g. C-101) + this password and can only see their own records. Instructors sign in with their Instructor ID (e.g. INST-07). Give the person their ID + temporary password once — they are the only copy.</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                    <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Role</label>
+                        <select id="acct-role" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold text-sm"><option value="student">Student</option><option value="instructor">Instructor</option></select></div>
+                    <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Full Name</label>
+                        <input type="text" id="acct-name" placeholder="Jane Miller" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold text-sm"></div>
+                    <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Login ID (Candidate ID / Instructor ID)</label>
+                        <input type="text" id="acct-personid" placeholder="C-101 or INST-07" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold text-sm"></div>
+                    <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Class (students)</label>
+                        <input type="text" id="acct-class" placeholder="2026-02" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold text-sm"></div>
+                    <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Temporary Password (8+ characters)</label>
+                        <input type="text" id="acct-pass" placeholder="e.g. Spartan-4821" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold text-sm"></div>
+                    <div class="flex items-end"><button onclick="createAccount()" id="acct-create-btn" class="w-full bg-[#0b2340] text-white px-6 py-3 rounded-xl font-black text-xs uppercase">Create Account</button></div>
+                </div>
+                <p id="acct-result" class="text-sm font-bold mt-4"></p>
+            </div>
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-6 border-b border-slate-100 font-black uppercase text-xs text-slate-900">Existing Accounts</div>
+                <div id="accounts-list" class="divide-y divide-slate-100"></div>
+                <p class="p-4 text-[11px] text-slate-400 font-bold">Deactivate blocks sign-in immediately (records are kept). Remove deletes the login profile — the person's evaluation history stays in Reports.</p>
+            </div>
+        </section>
     </main>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, deleteDoc, updateDoc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const appId = 'spc-fire-academy';
         const TASKS_CONFIG = [
@@ -294,7 +400,10 @@
             current: {},
             user: null,
             db: null,
-            auth: null
+            auth: null,
+            profile: null,
+            listenersStarted: false,
+            accounts: []
         };
 
         const firebaseConfig = {
@@ -308,18 +417,192 @@
 
         const app = initializeApp(firebaseConfig);
         window.state.auth = getAuth(app);
-        window.state.db = getFirestore(app);
+        try {
+            // v2: true offline-first — Firestore keeps a local copy on this device and
+            // uploads queued writes automatically when the internet comes back.
+            window.state.db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+        } catch (e) {
+            console.warn("Persistent cache unavailable, falling back:", e);
+            window.state.db = getFirestore(app);
+        }
+
+        const DATA = ['artifacts', appId, 'public', 'data'];
+        const dataDoc = (...seg) => doc(window.state.db, ...DATA, ...seg);
+        const dataCol = (...seg) => collection(window.state.db, ...DATA, ...seg);
+        const isAdmin = () => window.state.profile && window.state.profile.role === 'admin';
+        const isStudent = () => window.state.profile && window.state.profile.role === 'student';
+        const isStaff = () => window.state.profile && (window.state.profile.role === 'admin' || window.state.profile.role === 'instructor');
+        const emailForId = (v) => { v = (v || '').trim(); return v.includes('@') ? v : v.toLowerCase().replace(/\s+/g, '') + '@spc.local'; };
+
+        async function checkBootstrap() {
+            try {
+                const snap = await getDoc(dataDoc('config', 'bootstrap'));
+                const sf = document.getElementById('setup-form');
+                if (sf) sf.style.display = snap.exists() ? 'none' : 'block';
+                return snap.exists();
+            } catch (e) { return true; }
+        }
+
+        async function loadProfile(user, tries) {
+            for (let i = 0; i < (tries || 1); i++) {
+                const snap = await getDoc(dataDoc('users', user.uid));
+                if (snap.exists()) return snap.data();
+                await new Promise(r => setTimeout(r, 700));
+            }
+            return null;
+        }
+
+        async function enterApp(user) {
+            const profile = await loadProfile(user, 4);
+            if (!profile) {
+                const boot = await checkBootstrap();
+                if (boot) {
+                    document.getElementById('login-msg').innerText = "This login has no SPC profile. Ask the Master Admin to create your account.";
+                    await signOut(window.state.auth);
+                }
+                return; // setup still in progress — setup form writes the profile, then calls enterApp again
+            }
+            if (profile.disabled) {
+                document.getElementById('login-msg').innerText = "This account is deactivated. See the Master Admin.";
+                await signOut(window.state.auth);
+                return;
+            }
+            window.state.profile = profile;
+            document.body.classList.remove('is-admin', 'is-staff', 'is-student');
+            document.body.classList.add(profile.role === 'admin' ? 'is-admin' : profile.role === 'instructor' ? 'is-staff' : 'is-student');
+            document.getElementById('auth-overlay').style.display = 'none';
+            document.getElementById('user-name').innerText = profile.name || profile.loginEmail || '';
+            document.getElementById('user-role').innerText = (profile.role === 'admin' ? 'Master Admin' : profile.role) + (profile.personId ? ' · ' + profile.personId : '');
+            const chip = document.getElementById('role-chip'); if (chip) chip.innerText = document.getElementById('user-role').innerText;
+            const titleEl = document.getElementById('page-title');
+            if (isStudent()) {
+                document.getElementById('nav-database-label').innerText = 'My Reports';
+                const ai = document.getElementById('instructor-name-input'); if (ai) ai.closest('div').style.display = 'none';
+            } else {
+                const ai = document.getElementById('instructor-name-input');
+                if (ai && profile.name) { ai.value = profile.name; localStorage.setItem('spc_instructor', profile.name); }
+            }
+            updateSyncStatus(navigator.onLine ? "Online" : "Offline — saving on device", navigator.onLine ? "bg-green-500" : "bg-amber-500");
+            if (!window.state.listenersStarted) {
+                window.state.listenersStarted = true;
+                setupDataListener();
+                if (!isStudent()) setupRosterListener();
+                if (isAdmin()) setupAccountsListener();
+            }
+            window.switchTab(isStudent() ? 'tracker' : 'dashboard');
+            if (isStudent()) {
+                const ts = document.getElementById('tracker-search'); if (ts) ts.value = profile.personId || '';
+                const th = document.querySelector('#tab-tracker h3'); if (th) th.innerHTML = '<i class="fa-solid fa-chart-line text-amber-400"></i> My Progress — ' + (profile.name || '');
+                window.renderTracker();
+            }
+        }
 
         onAuthStateChanged(window.state.auth, (user) => {
             window.state.user = user;
-            if (user) {
-                updateSyncStatus("Online", "bg-green-500");
-                setupDataListener();
-                setupRosterListener();
-            } else {
-                signInAnonymously(window.state.auth).catch(() => updateSyncStatus("Offline", "bg-red-500"));
+            if (user) { enterApp(user); }
+            else {
+                document.getElementById('auth-overlay').style.display = 'flex';
+                checkBootstrap();
             }
         });
+
+        window.spcLogin = async () => {
+            const idv = document.getElementById('login-id').value;
+            const pw = document.getElementById('login-pass').value;
+            const msg = document.getElementById('login-msg');
+            if (!idv || !pw) { msg.innerText = "Enter your ID and password."; return; }
+            const btn = document.getElementById('login-btn'); btn.disabled = true; btn.innerText = "SIGNING IN...";
+            try { await signInWithEmailAndPassword(window.state.auth, emailForId(idv), pw); msg.innerText = ""; }
+            catch (e) { msg.innerText = "Sign-in failed — check your ID and password."; console.warn(e); }
+            finally { btn.disabled = false; btn.innerText = "SIGN IN"; }
+        };
+
+        window.spcSetupAdmin = async () => {
+            const email = document.getElementById('setup-email').value.trim();
+            const pw = document.getElementById('setup-pass').value;
+            const pw2 = document.getElementById('setup-pass2').value;
+            const msg = document.getElementById('setup-msg');
+            if (!email || pw.length < 8) { msg.innerText = "Use your email and a password of 8+ characters."; return; }
+            if (pw !== pw2) { msg.innerText = "Passwords do not match."; return; }
+            const btn = document.getElementById('setup-btn'); btn.disabled = true; btn.innerText = "CREATING...";
+            try {
+                const cred = await createUserWithEmailAndPassword(window.state.auth, email, pw);
+                await setDoc(dataDoc('users', cred.user.uid), { role: 'admin', name: 'Master Admin', personId: 'ADMIN', loginEmail: email, disabled: false, createdAt: new Date().toISOString() });
+                await setDoc(dataDoc('config', 'bootstrap'), { initialized: true, adminEmail: email, at: new Date().toISOString() });
+                msg.innerText = "";
+                enterApp(cred.user);
+            } catch (e) {
+                msg.innerText = "Setup failed: " + (e.code || e.message || e) + " — if Email/Password sign-in is not enabled in Firebase yet, enable it first (see SETUP.md).";
+                console.error(e);
+            } finally { btn.disabled = false; btn.innerText = "CREATE MASTER ADMIN"; }
+        };
+
+        window.spcLogout = async () => { try { await signOut(window.state.auth); } catch (e) {} location.reload(); };
+
+        /* ----- Accounts (Master Admin) ----- */
+        const setupAccountsListener = () => {
+            onSnapshot(dataCol('users'), (snap) => {
+                window.state.accounts = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+                renderAccounts();
+            }, (err) => console.error(err));
+        };
+
+        window.renderAccounts = () => {
+            const el = document.getElementById('accounts-list'); if (!el) return;
+            el.innerHTML = window.state.accounts.map(a => `
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 p-4">
+                    <div><b class="text-slate-800">${a.name || ''}</b> <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${a.role === 'admin' ? 'bg-amber-100 text-amber-700' : a.role === 'instructor' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}">${a.role}</span>
+                    <br><span class="text-[11px] font-bold text-slate-400">Login: ${a.loginEmail || (a.personId ? a.personId : a.uid)}${a.disabled ? ' · DEACTIVATED' : ''}</span></div>
+                    ${a.role !== 'admin' ? `<div class="flex gap-2">
+                        <button onclick="toggleAccount('${a.uid}', ${a.disabled ? 'false' : 'true'})" class="px-3 py-2 rounded-lg bg-slate-100 font-black text-[10px] uppercase">${a.disabled ? 'Reactivate' : 'Deactivate'}</button>
+                        <button onclick="removeAccount('${a.uid}')" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-black text-[10px] uppercase">Remove login</button>
+                    </div>` : '<span class="text-[10px] font-black uppercase text-amber-600">Master Admin</span>'}
+                </div>`).join('') || '<p class="p-6 text-slate-400 font-bold text-sm">No accounts yet.</p>';
+        };
+
+        window.createAccount = async () => {
+            if (!isAdmin()) return;
+            const role = document.getElementById('acct-role').value;
+            const name = document.getElementById('acct-name').value.trim();
+            const personId = document.getElementById('acct-personid').value.trim().toUpperCase();
+            const cls = document.getElementById('acct-class').value.trim();
+            const pw = document.getElementById('acct-pass').value;
+            const res = document.getElementById('acct-result');
+            if (!name || !personId || pw.length < 8) { res.style.color = '#b42318'; res.innerText = "Fill name, login ID, and a password of 8+ characters."; return; }
+            const btn = document.getElementById('acct-create-btn'); btn.disabled = true; btn.innerText = "CREATING...";
+            let secApp = null;
+            try {
+                const email = emailForId(personId);
+                secApp = initializeApp(firebaseConfig, 'sec' + Date.now());
+                const secAuth = getAuth(secApp);
+                const cred = await createUserWithEmailAndPassword(secAuth, email, pw);
+                await setDoc(dataDoc('users', cred.user.uid), { role, name, personId, loginEmail: email, disabled: false, createdAt: new Date().toISOString() });
+                // Keep the roster in step: the person appears in the directories + eval dropdowns
+                if (role === 'student') {
+                    const q = query(dataCol('candidates'), where('id', '==', personId));
+                    const existing = await getDocs(q);
+                    if (existing.empty) await setDoc(dataDoc('candidates', 'cand_' + Date.now()), { name, id: personId, class: cls });
+                } else {
+                    const q = query(dataCol('instructors'), where('name', '==', name));
+                    const existing = await getDocs(q);
+                    if (existing.empty) await setDoc(dataDoc('instructors', 'inst_' + Date.now()), { name });
+                }
+                await signOut(secAuth);
+                res.style.color = '#178a3c';
+                res.innerText = "Account created — give " + name + " this login ONCE:  ID: " + personId + "   Password: " + pw;
+                document.getElementById('acct-name').value = ""; document.getElementById('acct-personid').value = ""; document.getElementById('acct-pass').value = "";
+            } catch (e) {
+                res.style.color = '#b42318';
+                res.innerText = "Could not create account: " + (e.code || e.message || e) + (e.code === 'auth/email-already-in-use' ? " — that ID already has a login." : "");
+                console.error(e);
+            } finally {
+                if (secApp) { try { await deleteApp(secApp); } catch (e) {} }
+                btn.disabled = false; btn.innerText = "Create Account";
+            }
+        };
+
+        window.toggleAccount = async (uid, disabled) => { try { await updateDoc(dataDoc('users', uid), { disabled }); } catch (e) { alert("Failed — check connection."); } };
+        window.removeAccount = async (uid) => { if (confirm("Remove this login profile? Their evaluation history stays.")) { try { await deleteDoc(dataDoc('users', uid)); } catch (e) { alert("Failed — check connection."); } } };
 
         const updateSyncStatus = (status, color) => {
             const ind = document.getElementById('sync-indicator');
@@ -327,24 +610,35 @@
             if(ind) ind.className = `w-2 h-2 rounded-full ${color}`;
             if(txt) txt.innerText = status;
         };
+        const updatePending = (hasPending) => {
+            const b = document.getElementById('sync-pending');
+            if (b) b.classList.toggle('hidden', !hasPending);
+            if (hasPending) updateSyncStatus("Pending upload — saved on device", "bg-amber-500");
+            else if (navigator.onLine) updateSyncStatus("Online — synced", "bg-green-500");
+        };
+        window.addEventListener('online', () => updateSyncStatus("Online — syncing…", "bg-green-500"));
+        window.addEventListener('offline', () => updateSyncStatus("Offline — saving on device", "bg-amber-500"));
 
         const setupDataListener = () => {
-            const q = collection(window.state.db, 'artifacts', appId, 'public', 'data', 'evaluations');
+            const colRef = dataCol('evaluations');
+            // Students only ever receive their OWN records from the server (rules enforce this too)
+            const q = isStudent() ? query(colRef, where('id', '==', window.state.profile.personId || '__none__')) : colRef;
             onSnapshot(q, (snap) => {
                 window.state.evals = snap.docs.map(doc => ({ ...doc.data(), internalId: doc.id }))
                     .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+                updatePending(snap.metadata.hasPendingWrites);
                 window.refreshUI();
             }, (err) => console.error(err));
         };
 
         const setupRosterListener = () => {
-            const instQ = collection(window.state.db, 'artifacts', appId, 'public', 'data', 'instructors');
+            const instQ = dataCol('instructors');
             onSnapshot(instQ, (snap) => {
                 window.state.roster.instructors = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.name.localeCompare(b.name));
                 renderRosterLists();
                 updateFormDropdowns();
             });
-            const candQ = collection(window.state.db, 'artifacts', appId, 'public', 'data', 'candidates');
+            const candQ = dataCol('candidates');
             onSnapshot(candQ, (snap) => {
                 window.state.roster.candidates = snap.docs.map(doc => ({ internalId: doc.id, ...doc.data() })).sort((a,b) => a.name.localeCompare(b.name));
                 renderRosterLists();
@@ -379,7 +673,11 @@
         const formatTime = s => `${Math.floor(s/60)}:${(s%60).toString().padStart(2, '0')}`;
 
         window.switchTab = (tab) => {
+            if (isStudent() && !['tracker', 'database'].includes(tab)) tab = 'tracker';
+            if (!isAdmin() && tab === 'accounts') tab = 'dashboard';
+            if (!isStaff() && ['evaluation', 'roster'].includes(tab)) tab = 'tracker';
             window.state.activeTab = tab;
+            document.querySelectorAll('#bottomnav button').forEach(b => b.classList.toggle('bnav-active', b.dataset.bnav === tab));
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.getElementById(`tab-${tab}`).classList.add('active');
             document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
@@ -387,6 +685,7 @@
             if (sideBtn) sideBtn.classList.add('active');
             window.refreshUI();
             if(tab === 'evaluation') window.renderTasks();
+            if(tab === 'accounts') window.renderAccounts();
         };
 
         window.refreshUI = () => {
@@ -424,14 +723,18 @@
         window.renderTracker = () => {
             const container = document.getElementById('tracker-results');
             if (!container) return;
-            const q = document.getElementById('tracker-search').value.toLowerCase();
+            let q = document.getElementById('tracker-search').value.toLowerCase();
+            if (isStudent() && !q) q = (window.state.profile.personId || '').toLowerCase();
             if (!q) { container.innerHTML = ""; return; }
             
-            const history = window.state.evals.filter(e => 
-                e.name.toLowerCase().includes(q) || 
-                e.id.toLowerCase().includes(q) || 
+            let history = window.state.evals.filter(e =>
+                e.name.toLowerCase().includes(q) ||
+                e.id.toLowerCase().includes(q) ||
                 (e.class && e.class.toLowerCase().includes(q))
             );
+            const tFrom = document.getElementById('tracker-from')?.value, tTo = document.getElementById('tracker-to')?.value;
+            if (tFrom) history = history.filter(e => e.date >= tFrom);
+            if (tTo) history = history.filter(e => e.date <= tTo);
 
             const grouped = {};
             history.forEach(e => { 
@@ -464,7 +767,7 @@
                                         <h4 class="font-black text-slate-800 uppercase tracking-tight">${attempt.date}</h4>
                                         <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${attempt.finalStatus === 'PASS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${attempt.finalStatus}</span>
                                     </div>
-                                    <button onclick="editEval('${attempt.internalId}')" class="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><i class="fa-solid fa-edit"></i></button>
+                                    <button onclick="editEval('${attempt.internalId}')" class="staff-only p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><i class="fa-solid fa-edit"></i></button>
                                 </div>
                                 <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
                                     ${attempt.tasks.map(t => `
@@ -657,7 +960,7 @@
         };
 
         window.saveEvaluation = async () => {
-            if (!window.state.user) return;
+            if (!window.state.user || !isStaff()) return;
             const name = document.getElementById('eval-name').value;
             const id = document.getElementById('eval-id').value;
             if (!name || !id) return alert("Required: Name & ID#");
@@ -679,12 +982,17 @@
 
             try {
                 const docId = window.state.editingId || 'rec_' + Date.now();
-                await setDoc(doc(window.state.db, 'artifacts', appId, 'public', 'data', 'evaluations', docId), record);
+                // Offline-first: the write lands in the on-device Firestore cache immediately and
+                // uploads by itself when internet returns — never block the instructor on the server.
+                const writePromise = setDoc(doc(window.state.db, 'artifacts', appId, 'public', 'data', 'evaluations', docId), record);
+                writePromise.catch(e => console.warn("Write queued (offline):", e));
+                await Promise.race([writePromise, new Promise(r => setTimeout(r, 1500))]);
                 localStorage.removeItem('spc_draft_eval');
+                alert(navigator.onLine ? "Saved \u2713" : "Saved on this device (offline). It will upload automatically when internet returns.");
                 window.prepareNewEvaluation();
                 window.switchTab('dashboard');
             } catch (e) {
-                alert("Error saving. App will retry when online.");
+                alert("Error saving. Your draft is still on this device — try again.");
             } finally {
                 saveBtn.disabled = false;
                 saveBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> SAVE TO CLOUD';
@@ -705,7 +1013,7 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-3">
-                            <div class="px-6 py-3 rounded-2xl font-mono text-3xl font-black border-2 bg-white ${t.isRunning ? 'timer-active border-red-500' : ''} ${t.time > t.limitSec ? 'text-red-600' : ''}">
+                            <div class="px-6 py-3 rounded-2xl font-mono bigtimer font-black border-2 bg-white ${t.isRunning ? 'timer-active border-red-500' : ''} ${t.time > t.limitSec ? 'text-red-600' : ''}">
                                 <span id="t-val-${idx}">${formatTime(t.time)}</span>
                             </div>
                             <button onclick="window.toggleTimer(${idx})" class="px-6 py-4 rounded-2xl font-black text-xs uppercase shadow-lg transition-all active:scale-95 ${t.isRunning ? 'bg-amber-500' : 'bg-blue-600'} text-white">
@@ -727,8 +1035,8 @@
                             <textarea oninput="window.state.current.tasks[${idx}].feedback=this.value; persistProgress();" class="w-full bg-white border border-slate-200 p-3 rounded-xl text-sm font-medium outline-none">${t.feedback || ""}</textarea>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button onclick="window.state.current.tasks[${idx}].manualStatus = 'PASS'; persistProgress(); window.renderTasks();" class="flex-1 py-4 rounded-xl font-black text-xs uppercase transition-all ${(t.manualStatus === 'PASS' ? 'bg-green-600 text-white shadow-lg' : 'bg-slate-100 border')}">Pass</button>
-                            <button onclick="window.state.current.tasks[${idx}].manualStatus = 'FAIL'; persistProgress(); window.renderTasks();" class="flex-1 py-4 rounded-xl font-black text-xs uppercase transition-all ${(t.manualStatus === 'FAIL' ? 'bg-red-600 text-white shadow-lg' : 'bg-slate-100 border')}">Fail</button>
+                            <button onclick="window.state.current.tasks[${idx}].manualStatus = 'PASS'; persistProgress(); window.renderTasks();" class="flex-1 bigpf py-4 rounded-xl font-black text-xs uppercase transition-all ${(t.manualStatus === 'PASS' ? 'bg-green-600 text-white shadow-lg' : 'bg-slate-100 border')}">Pass</button>
+                            <button onclick="window.state.current.tasks[${idx}].manualStatus = 'FAIL'; persistProgress(); window.renderTasks();" class="flex-1 bigpf py-4 rounded-xl font-black text-xs uppercase transition-all ${(t.manualStatus === 'FAIL' ? 'bg-red-600 text-white shadow-lg' : 'bg-slate-100 border')}">Fail</button>
                         </div>
                     </div>
                 </div>
@@ -791,7 +1099,7 @@
                 instList.innerHTML = window.state.roster.instructors.map(i => `
                     <div class="flex items-center justify-between p-3 bg-slate-50 border rounded-xl">
                         <span class="font-bold text-slate-700">${i.name}</span>
-                        <button onclick="removeRosterItem('instructors', '${i.id}')" class="text-red-300 hover:text-red-600 p-1">
+                        <button onclick="removeRosterItem('instructors', '${i.id}')" class="admin-only text-red-300 hover:text-red-600 p-1">
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>`).join('');
@@ -804,7 +1112,7 @@
                             <b class="text-slate-800">${c.name}</b><br>
                             <span class="text-[9px] uppercase font-black text-slate-400">ID: ${c.id}</span>
                         </div>
-                        <button onclick="removeRosterItem('candidates', '${c.internalId}')" class="text-red-300 hover:text-red-600 p-1">
+                        <button onclick="removeRosterItem('candidates', '${c.internalId}')" class="admin-only text-red-300 hover:text-red-600 p-1">
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>`).join('');
@@ -834,17 +1142,30 @@
             if(!searchEl) return;
             const q = searchEl.value.toLowerCase();
             const listEl = document.getElementById('full-list');
+            const dFrom = document.getElementById('db-from')?.value, dTo = document.getElementById('db-to')?.value, dSt = document.getElementById('db-status')?.value;
+            const filtered = window.state.evals.filter(e => (e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q)) && (!dFrom || e.date >= dFrom) && (!dTo || e.date <= dTo) && (!dSt || e.finalStatus === dSt));
+            const sumEl = document.getElementById('report-summary');
+            if (sumEl) sumEl.innerText = filtered.length + " record(s)" + (isStudent() ? " — your records only" : "") + " · " + filtered.filter(e => e.finalStatus === 'PASS').length + " PASS · " + filtered.filter(e => e.finalStatus === 'FAIL').length + " FAIL";
+            window.__filteredEvals = filtered;
             if(listEl) {
-                listEl.innerHTML = window.state.evals.filter(e => e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q)).map(e => `
+                listEl.innerHTML = filtered.map(e => `
                     <tr><td class="px-6 py-4"><b>${e.name}</b><br><span class="text-[10px] text-slate-400">${e.date}</span></td>
                     <td class="px-6 py-4 text-xs font-bold">${e.instructor}</td>
                     <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-[9px] font-black uppercase ${e.finalStatus === 'PASS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${e.finalStatus}</span></td>
-                    <td class="px-6 py-4 text-right"><button onclick="deleteEval('${e.internalId}')" class="text-red-300 hover:text-red-600"><i class="fa-solid fa-trash"></i></button></td></tr>
+                    <td class="px-6 py-4 text-right"><button onclick="deleteEval('${e.internalId}')" class="staff-only text-red-300 hover:text-red-600"><i class="fa-solid fa-trash"></i></button></td></tr>
                 `).join('');
             }
         };
 
         window.deleteEval = async (id) => { if (confirm("Delete permanently?")) await deleteDoc(doc(window.state.db, 'artifacts', appId, 'public', 'data', 'evaluations', id)); };
+
+        window.exportFilteredCSV = () => {
+            const rows0 = window.__filteredEvals || window.state.evals;
+            const headers = ["Date", "Candidate", "ID", "Class", "Instructor", "Task", "Time", "Status", "Notes"];
+            const rows = rows0.flatMap(e => (e.tasks || []).map(t => [e.date, `"${e.name}"`, `"${e.id}"`, `"${e.class || ''}"`, `"${e.instructor}"`, `"${t.title}"`, formatTime(t.time), t.manualStatus, `"${(t.feedback || '').replace(/"/g, '""')}"`]));
+            const csv = headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = `SPC_Report_Filtered.csv`; a.click();
+        };
 
         window.exportCSV = () => {
             const headers = ["Candidate", "ID", "Class", "Instructor", "Date", "Final Status"];

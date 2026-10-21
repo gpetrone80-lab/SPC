@@ -1,0 +1,68 @@
+rules_version = '2';
+
+// SPC Fire College — Big Two Tracker (v2)
+// Roles live in artifacts/spc-fire-academy/public/data/users/{uid}
+//   admin      = Master Admin (adds/removes instructors & students, all reports)
+//   instructor = grade + reports for any student / class / date
+//   student    = can read ONLY evaluations whose `id` equals their personId
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function profPath() {
+      return /databases/$(database)/documents/artifacts/spc-fire-academy/public/data/users/$(request.auth.uid);
+    }
+    function signedIn() { return request.auth != null; }
+    function hasProfile() { return signedIn() && exists(profPath()); }
+    function prof() { return get(profPath()).data; }
+    function active() { return hasProfile() && prof().disabled != true; }
+    function isAdmin() { return active() && prof().role == 'admin'; }
+    function isStaff() { return active() && (prof().role == 'admin' || prof().role == 'instructor'); }
+    function bootPath() {
+      return /databases/$(database)/documents/artifacts/spc-fire-academy/public/data/config/bootstrap;
+    }
+    function bootExists() { return exists(bootPath()); }
+
+    // First-run flag: anyone may READ it (so the app knows whether setup is done);
+    // only the first signed-in user may CREATE it (during Master Admin setup).
+    match /artifacts/spc-fire-academy/public/data/config/bootstrap {
+      allow read: if true;
+      allow create: if signedIn() && !bootExists();
+      allow update, delete: if isAdmin();
+    }
+
+    match /artifacts/spc-fire-academy/public/data/users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isStaff());
+      // Admin can create accounts for others; the very first admin may create their own during setup.
+      allow create: if isAdmin()
+        || (signedIn() && request.auth.uid == uid && !bootExists() && request.resource.data.role == 'admin');
+      allow update: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow delete: if isAdmin();
+    }
+
+    match /artifacts/spc-fire-academy/public/data/evaluations/{docId} {
+      allow read: if isStaff()
+        || (active() && prof().role == 'student' && resource.data.id == prof().personId);
+      allow create, update: if isStaff();
+      allow delete: if isStaff();
+    }
+
+    match /artifacts/spc-fire-academy/public/data/archives/{docId} {
+      allow read, create, update: if isStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /artifacts/spc-fire-academy/public/data/instructors/{docId} {
+      allow read: if active();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /artifacts/spc-fire-academy/public/data/candidates/{docId} {
+      allow read: if active();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

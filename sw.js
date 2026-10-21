@@ -1,60 +1,37 @@
 /**
- * SPC Fire Academy - Service Worker
- * Version: v7.0.0 (Cloud Archive & EOD Enabled)
- * Handles offline caching for the PWA shell.
+ * SPC Fire College — Service Worker
+ * Version: v8.0.0 (v2: role logins, offline-first Firestore, hybrid UI)
+ * Caches the app shell so the tracker opens with no signal at all.
+ * Evaluation data itself lives in Firestore's on-device persistent cache
+ * and uploads automatically when connectivity returns.
  */
-
-const CACHE_NAME = 'spc-fire-academy-v7';
+const CACHE_NAME = 'spc-fire-academy-v8';
 const ASSETS_TO_CACHE = [
   './index.html',
   './manifest.json',
+  './spc-logo.jpg',
   'https://cdn.tailwindcss.com',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap'
 ];
 
-// Install Event: Caches the application shell
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE)).catch(() => {})
   );
-  // Force the waiting service worker to become the active one
   self.skipWaiting();
 });
 
-// Activate Event: Cleans up old cache versions
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cache) => {
-          if (cache !== CACHE_NAME) {
-            return caches.delete(cache);
-          }
-        })
-      );
-    })
+    caches.keys().then((names) => Promise.all(names.map((c) => { if (c !== CACHE_NAME) return caches.delete(c); })))
   );
-  // Ensure the service worker takes control of the page immediately
   self.clients.claim();
 });
 
-// Fetch Event: Network-first strategy with cache fallback
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests for caching
   if (event.request.method !== 'GET') return;
-
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // If successful, return the network response
-        return response;
-      })
-      .catch(() => {
-        // If network fails (offline), look for the file in the cache
-        return caches.match(event.request);
-      })
+    fetch(event.request).catch(() => caches.match(event.request, { ignoreSearch: true }))
   );
 });
