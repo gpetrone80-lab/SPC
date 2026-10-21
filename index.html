@@ -152,6 +152,7 @@
             <button data-bnav="evaluation" class="staff-only" onclick="prepareNewEvaluation()">+ Eval</button>
             <button data-bnav="roster" class="staff-only" onclick="switchTab('roster')">Roster</button>
             <button data-bnav="database" onclick="switchTab('database')">Reports</button>
+            <button onclick="spcLogout()">Sign out</button>
         </nav>
 
     <main class="flex-1 p-4 md:p-10 overflow-y-auto max-h-screen custom-scrollbar">
@@ -165,6 +166,7 @@
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Instructor</p>
                     <input type="text" id="instructor-name-input" oninput="localStorage.setItem('spc_instructor', this.value)" placeholder="Your Name" class="text-sm font-black text-slate-800 outline-none w-full md:w-32">
                 </div>
+                <button onclick="spcLogout()" class="px-4 py-3 rounded-2xl bg-white border border-slate-200 shadow-sm font-black text-xs uppercase tracking-widest text-slate-700"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button>
                 <span id="role-chip" class="hidden md:inline-block px-3 py-2 rounded-full bg-[#0b2340] text-white text-[10px] font-black uppercase tracking-widest"></span>
                 <button id="new-entry-btn" onclick="prepareNewEvaluation()" class="staff-only bg-[#c9a227] hover:bg-[#b08d1f] text-slate-900 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-2">
                     <i class="fa-solid fa-plus"></i> NEW ENTRY
