@@ -340,6 +340,7 @@
                     <input type="date" id="db-from" onchange="renderDatabase()" class="flex-1 p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold text-sm">
                     <input type="date" id="db-to" onchange="renderDatabase()" class="flex-1 p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold text-sm">
                     <select id="db-status" onchange="renderDatabase()" class="flex-1 p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold text-sm"><option value="">All results</option><option value="PASS">PASS only</option><option value="FAIL">FAIL only</option></select>
+                    <select id="db-instructor" onchange="renderDatabase()" class="flex-1 p-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none font-bold text-sm"><option value="">All instructors</option></select>
                     <button onclick="exportFilteredCSV()" class="bg-[#0b2340] text-white px-5 py-3 rounded-xl font-black text-[10px] uppercase whitespace-nowrap">Export filtered CSV</button>
                 </div>
                 <p id="report-summary" class="text-[11px] font-bold text-slate-400 mt-3"></p>
@@ -1179,9 +1180,18 @@
             const q = searchEl.value.toLowerCase();
             const listEl = document.getElementById('full-list');
             const dFrom = document.getElementById('db-from')?.value, dTo = document.getElementById('db-to')?.value, dSt = document.getElementById('db-status')?.value;
-            const filtered = window.state.evals.filter(e => (e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q)) && (!dFrom || e.date >= dFrom) && (!dTo || e.date <= dTo) && (!dSt || e.finalStatus === dSt));
+            const instSel = document.getElementById('db-instructor');
+            let dInst = instSel?.value || '';
+            if (instSel) {
+                const names = [...new Set(window.state.evals.map(e => e.instructor).filter(Boolean))].sort();
+                const cur = instSel.value;
+                instSel.innerHTML = '<option value="">All instructors</option>' + names.map(n => `<option value="${n}">${n}</option>`).join('');
+                instSel.value = names.includes(cur) ? cur : '';
+                dInst = instSel.value;
+            }
+            const filtered = window.state.evals.filter(e => (e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q)) && (!dFrom || e.date >= dFrom) && (!dTo || e.date <= dTo) && (!dSt || e.finalStatus === dSt) && (!dInst || e.instructor === dInst));
             const sumEl = document.getElementById('report-summary');
-            if (sumEl) sumEl.innerText = filtered.length + " record(s)" + (isStudent() ? " — your records only" : "") + " · " + filtered.filter(e => e.finalStatus === 'PASS').length + " PASS · " + filtered.filter(e => e.finalStatus === 'FAIL').length + " FAIL";
+            if (sumEl) sumEl.innerText = filtered.length + " record(s)" + (isStudent() ? " — your records only" : "") + (dInst ? " · Instructor: " + dInst : "") + " · " + filtered.filter(e => e.finalStatus === 'PASS').length + " PASS · " + filtered.filter(e => e.finalStatus === 'FAIL').length + " FAIL";
             window.__filteredEvals = filtered;
             if(listEl) {
                 listEl.innerHTML = filtered.map(e => `
