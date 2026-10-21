@@ -68,6 +68,7 @@
                 <input id="login-pass" type="password" autocomplete="current-password" placeholder="Your unique password" style="width:100%;padding:13px;border:2px solid #e2e8f0;border-radius:12px;font-weight:700;margin:4px 0 12px" onkeydown="if(event.key==='Enter')spcLogin()">
                 <button onclick="spcLogin()" id="login-btn" style="width:100%;background:#0b2340;color:#fff;padding:15px;border-radius:12px;font-weight:900;font-size:14px;border:0">SIGN IN</button>
                 <p id="login-msg" style="color:#b42318;font-size:12px;font-weight:700;margin-top:10px;text-align:center"></p>
+                <a href="manual.pdf" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:12px;font-size:12px;font-weight:900;text-transform:uppercase;color:#0b2340;text-decoration:underline"><i class="fa-solid fa-book-open"></i> Open the User Manual (PDF)</a>
                 <p style="color:#94a3b8;font-size:11px;text-align:center;margin-top:6px">Students: use the ID + password your instructor gave you.<br>You will only ever see your own records.</p>
             </div>
             <div id="setup-form" style="display:none;margin-top:16px;border-top:2px dashed #e2e8f0;padding-top:16px">
@@ -166,7 +167,8 @@
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Instructor</p>
                     <input type="text" id="instructor-name-input" oninput="localStorage.setItem('spc_instructor', this.value)" placeholder="Your Name" class="text-sm font-black text-slate-800 outline-none w-full md:w-32">
                 </div>
-                <button onclick="spcLogout()" class="px-4 py-3 rounded-2xl bg-white border border-slate-200 shadow-sm font-black text-xs uppercase tracking-widest text-slate-700"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button>
+                <a href="manual.pdf" target="_blank" rel="noopener" class="px-4 py-3 rounded-2xl bg-[#0b2340] shadow-sm font-black text-xs uppercase tracking-widest text-white no-underline"><i class="fa-solid fa-book-open"></i> Manual</a>
+            <button onclick="spcLogout()" class="px-4 py-3 rounded-2xl bg-white border border-slate-200 shadow-sm font-black text-xs uppercase tracking-widest text-slate-700"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button>
                 <span id="role-chip" class="hidden md:inline-block px-3 py-2 rounded-full bg-[#0b2340] text-white text-[10px] font-black uppercase tracking-widest"></span>
                 <button id="new-entry-btn" onclick="prepareNewEvaluation()" class="staff-only bg-[#c9a227] hover:bg-[#b08d1f] text-slate-900 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-2">
                     <i class="fa-solid fa-plus"></i> NEW ENTRY
