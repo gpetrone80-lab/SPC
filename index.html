@@ -379,9 +379,40 @@
                 <div id="accounts-list" class="divide-y divide-slate-100"></div>
                 <p class="p-4 text-[11px] text-slate-400 font-bold">Deactivate blocks sign-in immediately (records are kept). Remove deletes the login profile — the person's evaluation history stays in Reports.</p>
             </div>
+            <div class="bg-white rounded-3xl shadow-sm border-2 border-red-200 overflow-hidden">
+                <div class="p-6">
+                    <h3 class="font-black uppercase tracking-tighter text-xl text-red-700">Academy Data — Backup, Restore &amp; Reset</h3>
+                    <p class="text-slate-500 text-xs font-bold mt-1">End of academy: download a full backup, then reset the site so the next class starts clean. A backup holds every evaluation, archived day, and the full roster. Login passwords are never inside a backup — after a reset, create fresh logins for the new class in the form above.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5">
+                        <button onclick="downloadBackup()" class="bg-[#0b2340] text-white px-5 py-4 rounded-xl font-black text-xs uppercase"><i class="fa-solid fa-download mr-2"></i>Download Full Backup</button>
+                        <label class="bg-white border-2 border-[#0b2340] text-[#0b2340] px-5 py-4 rounded-xl font-black text-xs uppercase text-center cursor-pointer hover:bg-slate-50"><i class="fa-solid fa-upload mr-2"></i>Restore from Backup<input type="file" accept=".json,application/json" class="hidden" onchange="restoreBackup(this)"></label>
+                        <button onclick="openReset()" class="bg-red-600 hover:bg-red-700 text-white px-5 py-4 rounded-xl font-black text-xs uppercase"><i class="fa-solid fa-trash-can mr-2"></i>Reset Site — Start Fresh</button>
+                    </div>
+                    <p id="data-status" class="text-sm font-bold mt-4"></p>
+                </div>
+            </div>
         </section>
     </main>
 
+
+    <!-- ===== v2.4 RESET modal ===== -->
+    <div id="reset-modal" class="no-print" style="display:none;position:fixed;inset:0;z-index:95;background:rgba(80,10,10,.65);align-items:center;justify-content:center;padding:16px">
+        <div style="background:#fff;border-radius:20px;max-width:470px;width:100%;padding:24px;box-shadow:0 24px 60px rgba(0,0,0,.35)">
+            <h3 style="font-weight:900;font-size:17px;color:#b91c1c">Reset the entire site?</h3>
+            <p class="text-sm font-bold text-slate-500" style="margin-top:6px">This erases <b>all evaluations, all archived days, the whole roster, and every student &amp; instructor login</b>. Only your Master Admin account stays. There is no undo.</p>
+            <button onclick="downloadBackup()" style="width:100%;padding:13px;border-radius:12px;background:#0b2340;color:#fff;font-weight:900;border:0;margin-top:14px">STEP 1 — DOWNLOAD BACKUP NOW</button>
+            <label style="display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:13px;font-weight:700;color:#334155;cursor:pointer">
+                <input type="checkbox" id="reset-check" onchange="resetGate()" style="margin-top:2px;width:17px;height:17px">
+                <span>Step 2 — I have downloaded a backup of this academy's data and saved it somewhere safe.</span>
+            </label>
+            <label style="font-size:10px;font-weight:900;color:#64748b;text-transform:uppercase;letter-spacing:.08em;display:block;margin-top:12px">Step 3 — Type RESET to enable the erase button</label>
+            <input id="reset-type" type="text" oninput="resetGate()" placeholder="RESET" style="width:100%;padding:12px;border:2px solid #fecaca;border-radius:12px;font-weight:800;letter-spacing:.15em;margin-top:4px">
+            <div style="display:flex;gap:8px;margin-top:16px">
+                <button onclick="closeReset()" style="flex:1;padding:13px;border-radius:12px;background:#eef2f7;font-weight:900;border:0">CANCEL</button>
+                <button onclick="doReset()" id="reset-go" disabled style="flex:2;padding:13px;border-radius:12px;background:#dc2626;color:#fff;font-weight:900;border:0;opacity:.45">ERASE EVERYTHING</button>
+            </div>
+        </div>
+    </div>
 
     <!-- ===== v2.2 CORRECT STUDENT (reassign) modal ===== -->
     <div id="reassign-modal" class="no-print" style="display:none;position:fixed;inset:0;z-index:90;background:rgba(11,35,64,.65);align-items:center;justify-content:center;padding:16px">
@@ -629,6 +660,61 @@
 
         window.toggleAccount = async (uid, disabled) => { try { await updateDoc(dataDoc('users', uid), { disabled }); } catch (e) { alert("Failed — check connection."); } };
         window.removeAccount = async (uid) => { if (confirm("Remove this login profile? Their evaluation history stays.")) { try { await deleteDoc(dataDoc('users', uid)); } catch (e) { alert("Failed — check connection."); } } };
+
+        /* ----- v2.4 Backup / Restore / Reset (Master Admin) ----- */
+        const stripId = (o) => { const copy = {...o}; delete copy.internalId; return copy; };
+        const dataStatus = (msg, ok) => { const el = document.getElementById('data-status'); if (el) { el.innerText = msg; el.style.color = ok === false ? '#dc2626' : '#15803d'; } };
+        window.downloadBackup = async () => {
+            if (!isAdmin()) return;
+            try {
+                dataStatus('Preparing backup...', true);
+                const [archSnap, usersSnap] = await Promise.all([getDocs(dataColl('archives')), getDocs(dataColl('users'))]);
+                const backup = { app: 'spc-fire-backup', version: 2, exportedAt: new Date().toISOString(),
+                    evaluations: window.state.evals,
+                    archives: archSnap.docs.map(d => ({internalId: d.id, ...d.data()})),
+                    candidates: window.state.roster.candidates,
+                    instructors: window.state.roster.instructors,
+                    users: usersSnap.docs.map(d => ({internalId: d.id, ...d.data()})) };
+                const blob = new Blob([JSON.stringify(backup, null, 2)], {type: 'application/json'});
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+                a.download = 'SPC_Backup_' + new Date().toISOString().slice(0, 10) + '.json'; a.click();
+                dataStatus('Backup downloaded \u2713 — ' + backup.evaluations.length + ' evaluations, ' + backup.archives.length + ' archived day(s), ' + backup.candidates.length + ' students, ' + backup.instructors.length + ' instructors. Save the file somewhere safe.', true);
+            } catch (e) { console.error(e); dataStatus('Backup failed — check your connection and try again.', false); }
+        };
+        window.restoreBackup = async (input) => {
+            const file = input.files && input.files[0]; input.value = '';
+            if (!file || !isAdmin()) return;
+            let data; try { data = JSON.parse(await file.text()); } catch (e) { return alert('That file cannot be read as a backup.'); }
+            if (!data || data.app !== 'spc-fire-backup') return alert('That file is not an SPC backup file.');
+            const n = { e: (data.evaluations || []).length, a: (data.archives || []).length, c: (data.candidates || []).length, i: (data.instructors || []).length };
+            if (!confirm('Restore this backup (' + (data.exportedAt || 'unknown date') + ')?\n\n\u2022 ' + n.e + ' evaluation record(s)\n\u2022 ' + n.a + ' archived day(s)\n\u2022 ' + n.c + ' student(s) on the roster\n\u2022 ' + n.i + ' instructor(s) on the roster\n\nItems with the same ID overwrite what is on the site now; everything else is kept. Login accounts are NOT restored \u2014 passwords are never in a backup.')) return;
+            let ok = 0, fail = 0;
+            const put = async (coll, item) => { if (!item || !item.internalId) { fail++; return; } try { await setDoc(dataDoc(coll, item.internalId), stripId(item)); ok++; } catch (e) { fail++; } };
+            for (const e of (data.evaluations || [])) await put('evaluations', e);
+            for (const a of (data.archives || [])) await put('archives', a);
+            for (const c of (data.candidates || [])) await put('candidates', c);
+            for (const i of (data.instructors || [])) await put('instructors', i);
+            dataStatus('Restore finished: ' + ok + ' item(s) restored' + (fail ? ', ' + fail + ' failed — run it again.' : '.'), fail === 0);
+            alert('Restore finished: ' + ok + ' item(s) restored' + (fail ? ', ' + fail + ' failed — check your connection and run it again.' : '.') + '\n\nThe lists refresh automatically.');
+        };
+        window.openReset = () => { if (!isAdmin()) return; const c = document.getElementById('reset-check'); if (c) c.checked = false; const t = document.getElementById('reset-type'); if (t) t.value = ''; window.resetGate(); document.getElementById('reset-modal').style.display = 'flex'; };
+        window.closeReset = () => { document.getElementById('reset-modal').style.display = 'none'; };
+        window.resetGate = () => { const ok = (document.getElementById('reset-check')?.checked) && ((document.getElementById('reset-type')?.value || '').trim().toUpperCase() === 'RESET'); const b = document.getElementById('reset-go'); if (b) { b.disabled = !ok; b.style.opacity = ok ? '1' : '.45'; } };
+        window.doReset = async () => {
+            if (!isAdmin()) return;
+            if (!confirm('LAST CHANCE \u2014 erase ALL evaluations, archives, rosters and student/instructor logins? Your Master Admin account stays. This cannot be undone.')) return;
+            const btn = document.getElementById('reset-go'); btn.disabled = true; btn.innerText = 'ERASING...';
+            let del = 0, fail = 0;
+            const wipe = async (coll, keepUid) => { const snap = await getDocs(dataColl(coll)); for (const d of snap.docs) { if (keepUid && d.id === keepUid) continue; try { await deleteDoc(dataDoc(coll, d.id)); del++; } catch (e) { fail++; } } };
+            try {
+                await wipe('evaluations'); await wipe('archives'); await wipe('candidates'); await wipe('instructors');
+                await wipe('users', window.state.user.uid);
+                window.closeReset();
+                dataStatus('Site reset \u2713 — ' + del + ' item(s) erased. Ready for the next class.', fail === 0);
+                alert('Site reset complete: ' + del + ' item(s) erased' + (fail ? ', ' + fail + ' failed \u2014 run the reset again to finish.' : '.') + '\n\nThe site is empty and ready for the next class. Add the new roster and create the new logins in Accounts.');
+            } catch (e) { console.error(e); alert('The reset hit a problem and may be incomplete \u2014 check the connection and run it again.'); }
+            finally { btn.disabled = false; btn.innerText = 'ERASE EVERYTHING'; window.resetGate(); }
+        };
 
         const updateSyncStatus = (status, color) => {
             const ind = document.getElementById('sync-indicator');
