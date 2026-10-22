@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SPC Fire Academy - Performance Tracker</title>
     
     <link rel="manifest" href="manifest.json">
@@ -51,6 +51,20 @@
             #bottomnav button.bnav-active { background: #c9a227; color: #111; }
             body.is-student #bottomnav .staff-only { display: none !important; }
             main { padding-bottom: 96px !important; }
+        }
+        /* ===== v2.8 mobile polish ===== */
+        #sticky-gradebar { display: none; position: sticky; bottom: calc(88px + env(safe-area-inset-bottom)); z-index: 40; background: #0b2340; border-top: 4px solid #c9a227; border-radius: 18px; padding: 10px; align-items: center; gap: 8px; box-shadow: 0 12px 30px rgba(11,35,64,.35); }
+        @media (max-width: 767px) {
+            input:not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px !important; }
+            .p-8 { padding: 1.25rem !important; }
+            .p-6 { padding: 1rem !important; }
+            .hdr-btn { font-size: 0 !important; padding: 12px 13px !important; }
+            .hdr-btn i, .hdr-btn svg { font-size: 16px !important; }
+            #new-entry-btn { flex: 1 1 100%; justify-content: center; }
+            #tasks-list label { min-height: 54px; align-items: center; }
+            #bottomnav button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 9.5px; padding: 7px 6px; min-height: 54px; }
+            #bottomnav button svg { width: 19px; height: 19px; }
+            #sticky-gradebar { display: flex; }
         }
         #auth-overlay input { color: #0f172a; }
     </style>
@@ -149,12 +163,12 @@
     </div>
 
     <nav id="bottomnav" class="no-print">
-            <button data-bnav="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
-            <button data-bnav="tracker" onclick="switchTab('tracker')">History</button>
-            <button data-bnav="evaluation" class="staff-only" onclick="prepareNewEvaluation()">+ Eval</button>
-            <button data-bnav="roster" class="staff-only" onclick="switchTab('roster')">Roster</button>
-            <button data-bnav="database" onclick="switchTab('database')">Reports</button>
-            <button onclick="spcLogout()">Sign out</button>
+            <button data-bnav="dashboard" onclick="switchTab('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x='3' y='3' width='8' height='8' rx='1.5'/><rect x='13' y='3' width='8' height='8' rx='1.5'/><rect x='3' y='13' width='8' height='8' rx='1.5'/><rect x='13' y='13' width='8' height='8' rx='1.5'/></svg><span>Dashboard</span></button>
+            <button data-bnav="tracker" onclick="switchTab('tracker')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx='12' cy='12' r='9'/><path d='M12 7v5l3.5 2'/></svg><span>History</span></button>
+            <button data-bnav="evaluation" class="staff-only" onclick="prepareNewEvaluation()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d='M12 5v14M5 12h14'/></svg><span>Eval</span></button>
+            <button data-bnav="roster" class="staff-only" onclick="switchTab('roster')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx='9' cy='8' r='3.5'/><path d='M2.5 20c.8-3.2 3.4-5 6.5-5s5.7 1.8 6.5 5M16 4.6a3.5 3.5 0 010 6.8M17.5 15.4c2 .6 3.5 2.1 4 4.6'/></svg><span>Roster</span></button>
+            <button data-bnav="database" onclick="switchTab('database')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d='M4 20V10M10 20V4M16 20v-7M2 20h20'/></svg><span>Reports</span></button>
+            <button onclick="spcLogout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d='M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9'/></svg><span>Sign out</span></button>
         </nav>
 
     <main class="flex-1 p-4 md:p-10 overflow-y-auto max-h-screen custom-scrollbar">
@@ -163,14 +177,14 @@
                 <h2 id="page-title" class="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter">Academy Overview</h2>
                 <p class="text-slate-500 font-bold uppercase text-[10px] md:text-xs tracking-widest mt-1">St. Petersburg College Fire Academy</p>
             </div>
-            <div class="flex items-center gap-3 w-full md:w-auto">
+            <div class="flex items-center gap-3 w-full md:w-auto flex-wrap md:flex-nowrap">
                 <div class="bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm flex-1 md:flex-initial">
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Instructor</p>
                     <input type="text" id="instructor-name-input" oninput="localStorage.setItem('spc_instructor', this.value)" placeholder="Your Name" class="text-sm font-black text-slate-800 outline-none w-full md:w-32">
                 </div>
-                <button id="install-btn" onclick="installApp()" class="hidden px-4 py-3 rounded-2xl bg-[#c9a227] shadow-sm font-black text-xs uppercase tracking-widest text-[#0b2340]"><i class="fa-solid fa-download"></i> Install App</button>
-            <a href="manual.pdf" target="_blank" rel="noopener" class="px-4 py-3 rounded-2xl bg-[#0b2340] shadow-sm font-black text-xs uppercase tracking-widest text-white no-underline"><i class="fa-solid fa-book-open"></i> Manual</a>
-            <button onclick="spcLogout()" class="px-4 py-3 rounded-2xl bg-white border border-slate-200 shadow-sm font-black text-xs uppercase tracking-widest text-slate-700"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button>
+                <button id="install-btn" onclick="installApp()" class="hdr-btn hidden px-4 py-3 rounded-2xl bg-[#c9a227] shadow-sm font-black text-xs uppercase tracking-widest text-[#0b2340]"><i class="fa-solid fa-download"></i> Install App</button>
+            <a href="manual.pdf" target="_blank" rel="noopener" class="hdr-btn px-4 py-3 rounded-2xl bg-[#0b2340] shadow-sm font-black text-xs uppercase tracking-widest text-white no-underline"><i class="fa-solid fa-book-open"></i> Manual</a>
+            <button onclick="spcLogout()" class="hdr-btn px-4 py-3 rounded-2xl bg-white border border-slate-200 shadow-sm font-black text-xs uppercase tracking-widest text-slate-700"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button>
                 <span id="role-chip" class="hidden md:inline-block px-3 py-2 rounded-full bg-[#0b2340] text-white text-[10px] font-black uppercase tracking-widest"></span>
                 <button id="new-entry-btn" onclick="prepareNewEvaluation()" class="staff-only bg-[#c9a227] hover:bg-[#b08d1f] text-slate-900 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-2">
                     <i class="fa-solid fa-plus"></i> NEW ENTRY
@@ -220,7 +234,7 @@
                     <button onclick="switchTab('tracker')" class="text-red-600 font-bold hover:underline">Full History</button>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left">
+                    <table class="w-full text-left hidden md:table">
                         <thead class="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase">
                             <tr><th class="px-6 py-4">Candidate</th><th class="px-6 py-4">Status</th><th class="px-6 py-4">Date</th><th class="px-6 py-4 text-right">Action</th></tr>
                         </thead>
@@ -292,6 +306,15 @@
                     </button>
                 </div>
             </footer>
+                    <div id="sticky-gradebar">
+                <div style="display:flex;flex-direction:column;line-height:1.05;min-width:58px">
+                    <span id="sgb-label" style="font-size:9px;font-weight:900;color:#c9a227;letter-spacing:.08em">TASK 1</span>
+                    <span id="sgb-time" style="font-size:19px;font-weight:900;color:#fff;font-variant-numeric:tabular-nums">00:00</span>
+                </div>
+                <button onclick="sgbSetStatus('PASS')" style="flex:1;padding:13px;border-radius:12px;background:#16a34a;color:#fff;font-weight:900;border:0">PASS</button>
+                <button onclick="sgbSetStatus('FAIL')" style="flex:1;padding:13px;border-radius:12px;background:#dc2626;color:#fff;font-weight:900;border:0">FAIL</button>
+                <button onclick="saveEvaluation()" style="flex:1.2;padding:13px;border-radius:12px;background:#c9a227;color:#0b2340;font-weight:900;border:0">SAVE</button>
+            </div>
         </section>
 
         <section id="tab-roster" class="tab-content space-y-8 fade-in">
@@ -356,6 +379,7 @@
                     </thead>
                     <tbody id="full-list" class="divide-y divide-slate-100"></tbody>
                 </table>
+                <div id="db-cards" class="md:hidden divide-y divide-slate-100"></div>
             </div>
         </section>
 
@@ -1248,6 +1272,17 @@
             `).join('');
         };
 
+        /* ----- v2.8 sticky grading bar (mobile) ----- */
+        const sgbTaskIdx = () => { const ts = (window.state.current && window.state.current.tasks) || []; let i = ts.findIndex(t => t.isRunning); if (i >= 0) return i; for (let k = ts.length - 1; k >= 0; k--) { if (ts[k].manualStatus || ts[k].time > 0) return k; } return 0; };
+        window.sgbSetStatus = (st) => { const i = sgbTaskIdx(); const t = window.state.current && window.state.current.tasks && window.state.current.tasks[i]; if (!t) return; t.manualStatus = st; persistProgress(); window.renderTasks(); };
+        setInterval(() => {
+            const timeEl = document.getElementById('sgb-time'); if (!timeEl) return;
+            const i = sgbTaskIdx(); const t = window.state.current && window.state.current.tasks && window.state.current.tasks[i];
+            if (!t) return;
+            timeEl.innerText = formatTime(t.time);
+            const lbl = document.getElementById('sgb-label'); if (lbl) lbl.innerText = 'TASK ' + (i + 1) + (t.manualStatus ? ' · ' + t.manualStatus : '');
+        }, 500);
+
         window.updateFormInputs = () => {
             const c = window.state.current;
             const eb = document.getElementById('editing-banner');
@@ -1375,6 +1410,18 @@
                     <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-[9px] font-black uppercase ${e.finalStatus === 'PASS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${e.finalStatus}</span></td>
                     <td class="px-6 py-4 text-right"><button onclick="openReassign('${e.internalId}')" title="Move this record to the correct student" class="staff-only px-3 py-2 mr-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase"><i class="fa-solid fa-user-pen"></i> Correct Student</button><button onclick="deleteEval('${e.internalId}')" class="staff-only text-red-300 hover:text-red-600"><i class="fa-solid fa-trash"></i></button></td></tr>
                 `).join('');
+            }
+            const cardsEl = document.getElementById('db-cards');
+            if (cardsEl) {
+                cardsEl.innerHTML = filtered.map(e => {
+                    const tline = (e.tasks || []).map((t, i) => (t.time && t.time !== '00:00') ? 'T' + (i + 1) + ' ' + t.time : null).filter(Boolean).join(' · ');
+                    return `<div class="p-4">
+                        <div class="flex items-center justify-between gap-2"><b class="text-slate-800">${e.name}</b><span class="px-2 py-1 rounded-full text-[9px] font-black uppercase ${e.finalStatus === 'PASS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${e.finalStatus}</span></div>
+                        <p class="text-[11px] font-bold text-slate-400 mt-1">${e.id} · Class ${e.class || '—'} · ${e.date} · Instr. ${e.instructor || '—'}</p>
+                        ${tline ? `<p class="text-[11px] font-bold text-slate-500 mt-0.5">${tline}</p>` : ''}
+                        <div class="flex gap-2 mt-2.5"><button onclick="openReassign('${e.internalId}')" class="staff-only flex-1 px-3 py-2.5 rounded-lg bg-amber-500 text-white font-black text-[10px] uppercase">Correct Student</button><button onclick="deleteEval('${e.internalId}')" class="staff-only px-3 py-2.5 rounded-lg bg-red-50 text-red-500 font-black text-[10px] uppercase">Delete</button></div>
+                    </div>`;
+                }).join('') || '<p class="p-5 text-slate-400 font-bold text-sm">No records match the filters.</p>';
             }
         };
 
