@@ -397,6 +397,21 @@
     </main>
 
 
+    <!-- ===== v2.6 PASSWORD RESET modal ===== -->
+    <div id="pw-modal" class="no-print" style="display:none;position:fixed;inset:0;z-index:96;background:rgba(11,35,64,.65);align-items:center;justify-content:center;padding:16px">
+        <div style="background:#fff;border-radius:20px;max-width:430px;width:100%;padding:24px;box-shadow:0 24px 60px rgba(0,0,0,.35)">
+            <h3 style="font-weight:900;font-size:17px;color:#0b2340">Change password</h3>
+            <p id="pw-who" class="text-sm font-bold text-slate-500" style="margin-top:6px"></p>
+            <label style="font-size:10px;font-weight:900;color:#64748b;text-transform:uppercase;letter-spacing:.08em;display:block;margin-top:14px">New temporary password (8+ characters)</label>
+            <input id="pw-new" type="text" placeholder="e.g. Spartan-4821" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:12px;font-weight:700;margin-top:4px">
+            <p class="text-[11px] font-bold text-slate-400" style="margin-top:10px">The old password stops working immediately. The person's Login ID and all their evaluation records stay exactly the same. Give them the new password once — it is not stored anywhere you can look it up.</p>
+            <div style="display:flex;gap:8px;margin-top:16px">
+                <button onclick="closePwReset()" style="flex:1;padding:13px;border-radius:12px;background:#eef2f7;font-weight:900;border:0">CANCEL</button>
+                <button onclick="applyPwReset()" id="pw-go" style="flex:2;padding:13px;border-radius:12px;background:#d97706;color:#fff;font-weight:900;border:0">SET NEW PASSWORD</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ===== v2.4 RESET modal ===== -->
     <div id="reset-modal" class="no-print" style="display:none;position:fixed;inset:0;z-index:95;background:rgba(80,10,10,.65);align-items:center;justify-content:center;padding:16px">
         <div style="background:#fff;border-radius:20px;max-width:470px;width:100%;padding:24px;box-shadow:0 24px 60px rgba(0,0,0,.35)">
@@ -492,6 +507,17 @@
         const isStudent = () => window.state.profile && window.state.profile.role === 'student';
         const isStaff = () => window.state.profile && (window.state.profile.role === 'admin' || window.state.profile.role === 'instructor');
         const emailForId = (v) => { v = (v || '').trim(); return v.includes('@') ? v : v.toLowerCase().replace(/\s+/g, '') + '@spc.local'; };
+        /* v2.6: logins can move. The directory maps a Login ID to its CURRENT login email,
+           so the Master Admin can reset a password (a fresh login is created and the ID re-pointed). */
+        const dirKey = (pid) => (pid || '').trim().toUpperCase();
+        const baseEmailFor = (pid) => (pid || '').trim().toLowerCase().replace(/\s+/g, '') + '@spc.local';
+        const nextVariantEmail = (pid, current) => {
+            const stem = (pid || '').trim().toLowerCase().replace(/\s+/g, '');
+            if (!current || current === stem + '@spc.local') return stem + '.2@spc.local';
+            const m = (current || '').match(/\.(\d+)@spc\.local$/);
+            const n = m ? parseInt(m[1], 10) + 1 : 2;
+            return stem + '.' + n + '@spc.local';
+        };
 
         async function checkBootstrap() {
             try {
@@ -571,7 +597,13 @@
             const msg = document.getElementById('login-msg');
             if (!idv || !pw) { msg.innerText = "Enter your ID and password."; return; }
             const btn = document.getElementById('login-btn'); btn.disabled = true; btn.innerText = "SIGNING IN...";
-            try { await signInWithEmailAndPassword(window.state.auth, emailForId(idv), pw); msg.innerText = ""; }
+            try {
+                let email = emailForId(idv);
+                if (!idv.includes('@')) {
+                    try { const snap = await getDoc(dataDoc('directory', dirKey(idv))); if (snap.exists() && snap.data().loginEmail) email = snap.data().loginEmail; } catch (e) { /* directory unavailable: use the standard address */ }
+                }
+                await signInWithEmailAndPassword(window.state.auth, email, pw); msg.innerText = "";
+            }
             catch (e) { msg.innerText = "Sign-in failed — check your ID and password."; console.warn(e); }
             finally { btn.disabled = false; btn.innerText = "SIGN IN"; }
         };
@@ -613,6 +645,7 @@
                     <div><b class="text-slate-800">${a.name || ''}</b> <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${a.role === 'admin' ? 'bg-amber-100 text-amber-700' : a.role === 'instructor' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}">${a.role}</span>
                     <br><span class="text-[11px] font-bold text-slate-400">Login: ${a.loginEmail || (a.personId ? a.personId : a.uid)}${a.disabled ? ' · DEACTIVATED' : ''}</span></div>
                     ${a.role !== 'admin' ? `<div class="flex gap-2">
+                        <button onclick="openPwReset('${a.uid}')" class="px-3 py-2 rounded-lg bg-amber-500 text-white font-black text-[10px] uppercase">Password</button>
                         <button onclick="toggleAccount('${a.uid}', ${a.disabled ? 'false' : 'true'})" class="px-3 py-2 rounded-lg bg-slate-100 font-black text-[10px] uppercase">${a.disabled ? 'Reactivate' : 'Deactivate'}</button>
                         <button onclick="removeAccount('${a.uid}')" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-black text-[10px] uppercase">Remove login</button>
                     </div>` : '<span class="text-[10px] font-black uppercase text-amber-600">Master Admin</span>'}
@@ -631,11 +664,17 @@
             const btn = document.getElementById('acct-create-btn'); btn.disabled = true; btn.innerText = "CREATING...";
             let secApp = null;
             try {
-                const email = emailForId(personId);
+                let email = emailForId(personId);
                 secApp = initializeApp(firebaseConfig, 'sec' + Date.now());
                 const secAuth = getAuth(secApp);
-                const cred = await createUserWithEmailAndPassword(secAuth, email, pw);
+                let cred = null, lastErr = null;
+                for (let attempt = 0; attempt < 6 && !cred; attempt++) {
+                    try { cred = await createUserWithEmailAndPassword(secAuth, email, pw); }
+                    catch (e) { lastErr = e; if (e.code === 'auth/email-already-in-use') { email = nextVariantEmail(personId, email); continue; } throw e; }
+                }
+                if (!cred) throw lastErr || new Error('Could not create the login.');
                 await setDoc(dataDoc('users', cred.user.uid), { role, name, personId, loginEmail: email, disabled: false, createdAt: new Date().toISOString() });
+                await setDoc(dataDoc('directory', dirKey(personId)), { loginEmail: email, role, updatedAt: new Date().toISOString() });
                 // Keep the roster in step: the person appears in the directories + eval dropdowns
                 if (role === 'student') {
                     const q = query(dataCol('candidates'), where('id', '==', personId));
@@ -662,6 +701,51 @@
 
         window.toggleAccount = async (uid, disabled) => { try { await updateDoc(dataDoc('users', uid), { disabled }); } catch (e) { alert("Failed — check connection."); } };
         window.removeAccount = async (uid) => { if (confirm("Remove this login profile? Their evaluation history stays.")) { try { await deleteDoc(dataDoc('users', uid)); } catch (e) { alert("Failed — check connection."); } } };
+
+        /* ----- v2.6 Admin password reset (student & instructor) ----- */
+        window.__pwUid = null;
+        window.openPwReset = (uid) => {
+            if (!isAdmin()) return;
+            const a = window.state.accounts.find(x => x.uid === uid);
+            if (!a || a.role === 'admin') return;
+            window.__pwUid = uid;
+            document.getElementById('pw-who').innerText = a.name + ' (' + a.personId + ') — ' + a.role;
+            document.getElementById('pw-new').value = '';
+            document.getElementById('pw-modal').style.display = 'flex';
+        };
+        window.closePwReset = () => { document.getElementById('pw-modal').style.display = 'none'; window.__pwUid = null; };
+        window.applyPwReset = async () => {
+            const a = window.state.accounts.find(x => x.uid === window.__pwUid);
+            if (!a) return window.closePwReset();
+            const pw = document.getElementById('pw-new').value;
+            if (pw.length < 8) return alert('The new password needs 8+ characters.');
+            if (!confirm('Set a new password for ' + a.name + ' (' + a.personId + ')?\n\nTheir old password stops working immediately. Their ID and all their records stay exactly the same.')) return;
+            const btn = document.getElementById('pw-go'); btn.disabled = true; btn.innerText = 'CHANGING...';
+            let secApp = null;
+            try {
+                let email = nextVariantEmail(a.personId, a.loginEmail || emailForId(a.personId));
+                secApp = initializeApp(firebaseConfig, 'sec' + Date.now());
+                const secAuth = getAuth(secApp);
+                let cred = null, lastErr = null;
+                for (let attempt = 0; attempt < 6 && !cred; attempt++) {
+                    try { cred = await createUserWithEmailAndPassword(secAuth, email, pw); }
+                    catch (e) { lastErr = e; if (e.code === 'auth/email-already-in-use') { email = nextVariantEmail(a.personId, email); continue; } throw e; }
+                }
+                if (!cred) throw lastErr || new Error('Could not create the new login.');
+                await setDoc(dataDoc('users', cred.user.uid), { role: a.role, name: a.name, personId: a.personId, loginEmail: email, disabled: false, createdAt: new Date().toISOString() });
+                await setDoc(dataDoc('directory', dirKey(a.personId)), { loginEmail: email, role: a.role, updatedAt: new Date().toISOString() });
+                await signOut(secAuth);
+                try { await deleteDoc(dataDoc('users', a.uid)); } catch (e) { /* old profile cleanup is best-effort */ }
+                window.closePwReset();
+                alert('Password changed \u2713\n\nGive ' + a.name + ' this login ONCE:\nID: ' + a.personId + '\nPassword: ' + pw + '\n\nThe old password no longer works. All their records are untouched.');
+            } catch (e) {
+                console.error(e);
+                alert('Could not change the password — check the connection and try again. Nothing was changed.');
+            } finally {
+                if (secApp) { try { await deleteApp(secApp); } catch (e) {} }
+                btn.disabled = false; btn.innerText = 'SET NEW PASSWORD';
+            }
+        };
 
         /* ----- v2.4 Backup / Restore / Reset (Master Admin) ----- */
         const stripId = (o) => { const copy = {...o}; delete copy.internalId; return copy; };
@@ -711,6 +795,7 @@
             try {
                 await wipe('evaluations'); await wipe('archives'); await wipe('candidates'); await wipe('instructors');
                 await wipe('users', window.state.user.uid);
+                await wipe('directory');
                 window.closeReset();
                 dataStatus('Site reset \u2713 — ' + del + ' item(s) erased. Ready for the next class.', fail === 0);
                 alert('Site reset complete: ' + del + ' item(s) erased' + (fail ? ', ' + fail + ' failed \u2014 run the reset again to finish.' : '.') + '\n\nThe site is empty and ready for the next class. Add the new roster and create the new logins in Accounts.');

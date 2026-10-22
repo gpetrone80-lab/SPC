@@ -61,6 +61,15 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // Login directory: maps a Login ID (personId) to its CURRENT login email.
+    // Readable before sign-in by design: it holds only IDs + synthetic @spc.local
+    // addresses (no secrets). It exists so the sign-in screen can find the current
+    // login after a Master Admin password reset moves an ID to a fresh login.
+    match /artifacts/spc-fire-academy/public/data/directory/{pid} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

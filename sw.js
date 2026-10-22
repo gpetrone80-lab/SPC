@@ -1,11 +1,11 @@
 /**
  * SPC Fire College — Service Worker
- * Version: v8.5.0 (In-app Manual button) (v2: role logins, offline-first Firestore, hybrid UI)
+ * Version: v8.6.0 (Admin password reset) (v2: role logins, offline-first Firestore, hybrid UI)
  * Caches the app shell so the tracker opens with no signal at all.
  * Evaluation data itself lives in Firestore's on-device persistent cache
  * and uploads automatically when connectivity returns.
  */
-const CACHE_NAME = 'spc-fire-academy-v13';
+const CACHE_NAME = 'spc-fire-academy-v14';
 const ASSETS_TO_CACHE = [
   './index.html',
   './manifest.json',
