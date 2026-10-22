@@ -1,1 +1,17 @@
-{"background_color":"#0b2340","description":"Candidate performance and Big Two evaluation tracking for St. Petersburg College Fire Academy","display":"standalone","icons":[{"sizes":"302x302","src":"spc-logo.jpg","type":"image/jpeg"},{"purpose":"any maskable","sizes":"302x302","src":"spc-logo.jpg","type":"image/jpeg"}],"name":"SPC Fire College — Big Two Tracker","orientation":"any","short_name":"SPC Fire","start_url":"./index.html","theme_color":"#0b2340"}
+{
+  "name": "SPC Fire College — Big Two Tracker",
+  "short_name": "SPC Fire",
+  "description": "Candidate performance and Big Two evaluation tracking for St. Petersburg College Fire Academy",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b2340",
+  "theme_color": "#0b2340",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

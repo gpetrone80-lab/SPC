@@ -8,9 +8,10 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0b2340">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="SPC Fire">
-    <link rel="apple-touch-icon" href="spc-logo.jpg">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <link rel="icon" href="spc-logo.jpg">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -167,7 +168,8 @@
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Instructor</p>
                     <input type="text" id="instructor-name-input" oninput="localStorage.setItem('spc_instructor', this.value)" placeholder="Your Name" class="text-sm font-black text-slate-800 outline-none w-full md:w-32">
                 </div>
-                <a href="manual.pdf" target="_blank" rel="noopener" class="px-4 py-3 rounded-2xl bg-[#0b2340] shadow-sm font-black text-xs uppercase tracking-widest text-white no-underline"><i class="fa-solid fa-book-open"></i> Manual</a>
+                <button id="install-btn" onclick="installApp()" class="hidden px-4 py-3 rounded-2xl bg-[#c9a227] shadow-sm font-black text-xs uppercase tracking-widest text-[#0b2340]"><i class="fa-solid fa-download"></i> Install App</button>
+            <a href="manual.pdf" target="_blank" rel="noopener" class="px-4 py-3 rounded-2xl bg-[#0b2340] shadow-sm font-black text-xs uppercase tracking-widest text-white no-underline"><i class="fa-solid fa-book-open"></i> Manual</a>
             <button onclick="spcLogout()" class="px-4 py-3 rounded-2xl bg-white border border-slate-200 shadow-sm font-black text-xs uppercase tracking-widest text-slate-700"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button>
                 <span id="role-chip" class="hidden md:inline-block px-3 py-2 rounded-full bg-[#0b2340] text-white text-[10px] font-black uppercase tracking-widest"></span>
                 <button id="new-entry-btn" onclick="prepareNewEvaluation()" class="staff-only bg-[#c9a227] hover:bg-[#b08d1f] text-slate-900 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-2">
@@ -1454,6 +1456,34 @@
                 });
             }
         };
+
+        /* ----- v2.7 PWA install ----- */
+        let deferredInstallPrompt = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredInstallPrompt = e;
+            const b = document.getElementById('install-btn'); if (b) b.classList.remove('hidden');
+        });
+        window.addEventListener('appinstalled', () => {
+            deferredInstallPrompt = null;
+            const b = document.getElementById('install-btn'); if (b) b.classList.add('hidden');
+        });
+        window.installApp = async () => {
+            if (deferredInstallPrompt) {
+                deferredInstallPrompt.prompt();
+                try { const choice = await deferredInstallPrompt.userChoice; if (choice && choice.outcome === 'accepted') { deferredInstallPrompt = null; document.getElementById('install-btn')?.classList.add('hidden'); } } catch (e) {}
+                return;
+            }
+            if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
+                alert('To install the app: tap the Share button, then "Add to Home Screen". The SPC icon will appear on your home screen like a regular app.');
+            } else {
+                alert('To install: open your browser menu and tap "Install app" (or "Add to Home screen"). If you do not see that option, the app is likely already installed.');
+            }
+        };
+        // iPhone/iPad never fire beforeinstallprompt: show the button there so the instructions are one tap away
+        if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !(window.navigator.standalone === true)) {
+            const b = document.getElementById('install-btn'); if (b) b.classList.remove('hidden');
+        }
     </script>
 </body>
 </html>
