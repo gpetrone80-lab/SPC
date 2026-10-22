@@ -83,6 +83,7 @@
                 <input id="login-pass" type="password" autocomplete="current-password" placeholder="Your unique password" style="width:100%;padding:13px;border:2px solid #e2e8f0;border-radius:12px;font-weight:700;margin:4px 0 12px" onkeydown="if(event.key==='Enter')spcLogin()">
                 <button onclick="spcLogin()" id="login-btn" style="width:100%;background:#0b2340;color:#fff;padding:15px;border-radius:12px;font-weight:900;font-size:14px;border:0">SIGN IN</button>
                 <p id="login-msg" style="color:#b42318;font-size:12px;font-weight:700;margin-top:10px;text-align:center"></p>
+                <button id="install-btn-login" onclick="installApp()" class="install-cta hidden" style="width:100%;background:#c9a227;color:#0b2340;padding:13px;border-radius:12px;font-weight:900;font-size:13px;border:0;margin-top:10px;text-transform:uppercase;letter-spacing:.05em"><i class="fa-solid fa-download"></i> Install the App</button>
                 <a href="manual.pdf" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:12px;font-size:12px;font-weight:900;text-transform:uppercase;color:#0b2340;text-decoration:underline"><i class="fa-solid fa-book-open"></i> Open the User Manual (PDF)</a>
                 <p style="color:#94a3b8;font-size:11px;text-align:center;margin-top:6px">Students: use the ID + password your instructor gave you.<br>You will only ever see your own records.</p>
             </div>
@@ -182,7 +183,7 @@
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Instructor</p>
                     <input type="text" id="instructor-name-input" oninput="localStorage.setItem('spc_instructor', this.value)" placeholder="Your Name" class="text-sm font-black text-slate-800 outline-none w-full md:w-32">
                 </div>
-                <button id="install-btn" onclick="installApp()" class="hdr-btn hidden px-4 py-3 rounded-2xl bg-[#c9a227] shadow-sm font-black text-xs uppercase tracking-widest text-[#0b2340]"><i class="fa-solid fa-download"></i> Install App</button>
+                <button id="install-btn" onclick="installApp()" class="install-cta hdr-btn hidden px-4 py-3 rounded-2xl bg-[#c9a227] shadow-sm font-black text-xs uppercase tracking-widest text-[#0b2340]"><i class="fa-solid fa-download"></i> Install App</button>
             <a href="manual.pdf" target="_blank" rel="noopener" class="hdr-btn px-4 py-3 rounded-2xl bg-[#0b2340] shadow-sm font-black text-xs uppercase tracking-widest text-white no-underline"><i class="fa-solid fa-book-open"></i> Manual</a>
             <button onclick="spcLogout()" class="hdr-btn px-4 py-3 rounded-2xl bg-white border border-slate-200 shadow-sm font-black text-xs uppercase tracking-widest text-slate-700"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button>
                 <span id="role-chip" class="hidden md:inline-block px-3 py-2 rounded-full bg-[#0b2340] text-white text-[10px] font-black uppercase tracking-widest"></span>
@@ -601,6 +602,12 @@
                 if (isAdmin()) setupAccountsListener();
             }
             window.switchTab(isStudent() ? 'tracker' : 'dashboard');
+            // v2.9: home-screen shortcuts can deep-link (?tab=evaluation|database|tracker|...)
+            try {
+                const want = new URLSearchParams(window.location.search).get('tab');
+                if (want === 'evaluation' && isStaff()) { window.prepareNewEvaluation(); }
+                else if (want && ['dashboard', 'tracker', 'database', 'roster', 'accounts'].includes(want) && !(isStudent() && (want === 'roster' || want === 'accounts'))) { window.switchTab(want); }
+            } catch (e) {}
             if (isStudent()) {
                 const ts = document.getElementById('tracker-search'); if (ts) ts.value = profile.personId || '';
                 const th = document.querySelector('#tab-tracker h3'); if (th) th.innerHTML = '<i class="fa-solid fa-chart-line text-amber-400"></i> My Progress — ' + (profile.name || '');
@@ -1505,32 +1512,30 @@
         };
 
         /* ----- v2.7 PWA install ----- */
+        /* ----- v2.9 PWA install: buttons live on the sign-in screen AND the header,
+           visible whenever the app is not already running installed ----- */
         let deferredInstallPrompt = null;
+        const inStandalone = () => (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+        const setInstallVisible = (v) => document.querySelectorAll('.install-cta').forEach(b => b.classList.toggle('hidden', !v));
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredInstallPrompt = e;
-            const b = document.getElementById('install-btn'); if (b) b.classList.remove('hidden');
+            if (!inStandalone()) setInstallVisible(true);
         });
-        window.addEventListener('appinstalled', () => {
-            deferredInstallPrompt = null;
-            const b = document.getElementById('install-btn'); if (b) b.classList.add('hidden');
-        });
+        window.addEventListener('appinstalled', () => { deferredInstallPrompt = null; setInstallVisible(false); });
         window.installApp = async () => {
             if (deferredInstallPrompt) {
                 deferredInstallPrompt.prompt();
-                try { const choice = await deferredInstallPrompt.userChoice; if (choice && choice.outcome === 'accepted') { deferredInstallPrompt = null; document.getElementById('install-btn')?.classList.add('hidden'); } } catch (e) {}
+                try { const choice = await deferredInstallPrompt.userChoice; if (choice && choice.outcome === 'accepted') { deferredInstallPrompt = null; setInstallVisible(false); } } catch (e) {}
                 return;
             }
             if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
                 alert('To install the app: tap the Share button, then "Add to Home Screen". The SPC icon will appear on your home screen like a regular app.');
             } else {
-                alert('To install: open your browser menu and tap "Install app" (or "Add to Home screen"). If you do not see that option, the app is likely already installed.');
+                alert('To install: open this page in Chrome (not inside another app), tap the three-dot menu, then "Install app" (or "Add to Home screen"). If that option is missing, the app is likely already installed — check your app drawer for "SPC Fire".');
             }
         };
-        // iPhone/iPad never fire beforeinstallprompt: show the button there so the instructions are one tap away
-        if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !(window.navigator.standalone === true)) {
-            const b = document.getElementById('install-btn'); if (b) b.classList.remove('hidden');
-        }
+        if (!inStandalone()) setInstallVisible(true);
     </script>
 </body>
 </html>
