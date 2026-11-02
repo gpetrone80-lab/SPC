@@ -942,6 +942,7 @@
             if (draft) {
                 const parsed = JSON.parse(draft);
                 window.state.current = parsed;
+                (parsed.tasks || []).forEach((t) => { t.isRunning = false; });
                 document.getElementById('resume-badge').classList.remove('hidden');
                 window.updateFormInputs();
             }
@@ -1217,8 +1218,22 @@
             localStorage.removeItem('spc_draft_eval');
             const badge = document.getElementById('resume-badge');
             if(badge) badge.classList.add('hidden');
+            window.__autoStartNew = true;
             window.switchTab('evaluation'); 
             window.updateFormInputs();
+        };
+
+        /* v2.11: a task over its time limit is an automatic FAIL (locked); the timer keeps running to record the full time */
+        const enforceLimit = (t) => { if (t.time > t.limitSec) { t.autoFailed = true; t.manualStatus = 'FAIL'; } };
+        window.gradeTask = (idx, st) => {
+            const t = window.state.current && window.state.current.tasks && window.state.current.tasks[idx];
+            if (!t) return;
+            enforceLimit(t);
+            if (t.autoFailed && st === 'PASS') { notify('Over the time limit: this task is an automatic FAIL and cannot be changed to PASS.'); return; }
+            if (t.isRunning) { clearInterval(window.state.timers[idx]); t.isRunning = false; }
+            t.manualStatus = st;
+            persistProgress();
+            window.renderTasks();
         };
 
         window.toggleTimer = (idx) => {
@@ -1229,7 +1244,7 @@
             } else {
                 t.isRunning = true;
                 window.state.timers[idx] = setInterval(() => {
-                    t.time++;
+                    t.time++; if (t.time === t.limitSec + 1) window.renderTasks();
                     const el = document.getElementById(`t-val-${idx}`);
                     if (el) {
                         el.innerText = formatTime(t.time);
@@ -1290,14 +1305,15 @@
         window.renderTasks = () => {
             const container = document.getElementById('tasks-list');
             if (window.state.activeTab !== 'evaluation' || !container) return;
-            container.innerHTML = window.state.current.tasks.map((t, idx) => `
+            window.state.current.tasks.forEach(enforceLimit);
+            container.innerHTML = window.state.current.tasks.map((t, idx) =>`
                 <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 ${t.manualStatus === 'PASS' ? 'ring-4 ring-green-400' : (t.manualStatus === 'FAIL' ? 'ring-4 ring-red-400' : '')}">
                     <div class="p-6 bg-slate-50 flex flex-col md:flex-row justify-between items-center gap-6 border-b">
                         <div class="flex items-center gap-4 flex-1">
                             <span class="w-12 h-12 rounded-2xl bg-red-700 text-white flex items-center justify-center font-black text-xl">${t.id}</span>
                             <div class="flex-1">
                                 ${t.id >= 4 ? `<input type="text" value="${t.title}" oninput="window.state.current.tasks[${idx}].title=this.value; persistProgress();" class="bg-transparent border-b-2 border-slate-200 font-black text-lg text-slate-800 uppercase outline-none focus:border-red-600 w-full">` : `<h3 class="font-black text-lg text-slate-800 uppercase">${t.title}</h3>`}
-                                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">LIMIT: ${t.limit} <span id="over-${idx}" class="ml-1 px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black ${t.time > t.limitSec ? '' : 'hidden'}">OVER LIMIT</span></p>
+                                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">LIMIT: ${t.limit} <span id="over-${idx}" class="ml-1 px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black ${t.time > t.limitSec ? '' : 'hidden'}">OVER LIMIT · AUTO FAIL</span></p>
                             </div>
                         </div>
                         <div class="flex items-center gap-3">
@@ -1323,8 +1339,8 @@
                             <textarea oninput="window.state.current.tasks[${idx}].feedback=this.value; persistProgress();" class="w-full bg-white border border-slate-200 p-3 rounded-xl text-sm font-medium outline-none">${t.feedback || ""}</textarea>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button onclick="window.state.current.tasks[${idx}].manualStatus = 'PASS'; persistProgress(); window.renderTasks();" class="flex-1 bigpf py-4 rounded-xl font-black text-xs uppercase transition-all ${(t.manualStatus === 'PASS' ? 'bg-green-600 text-white shadow-lg' : 'bg-slate-100 border')}">Pass</button>
-                            <button onclick="window.state.current.tasks[${idx}].manualStatus = 'FAIL'; persistProgress(); window.renderTasks();" class="flex-1 bigpf py-4 rounded-xl font-black text-xs uppercase transition-all ${(t.manualStatus === 'FAIL' ? 'bg-red-600 text-white shadow-lg' : 'bg-slate-100 border')}">Fail</button>
+                            <button onclick="window.gradeTask(${idx}, 'PASS')" ${t.autoFailed ? 'disabled' : ''} class="flex-1 bigpf py-4 rounded-xl font-black text-xs uppercase transition-all ${t.autoFailed ? 'opacity-40 cursor-not-allowed' : ''} ${(t.manualStatus === 'PASS' ? 'bg-green-600 text-white shadow-lg' : 'bg-slate-100 border')}">Pass</button>
+                            <button onclick="window.gradeTask(${idx}, 'FAIL')" class="flex-1 bigpf py-4 rounded-xl font-black text-xs uppercase transition-all ${(t.manualStatus === 'FAIL' ? 'bg-red-600 text-white shadow-lg' : 'bg-slate-100 border')}">Fail</button>
                         </div>
                     </div>
                 </div>
@@ -1333,7 +1349,7 @@
 
         /* ----- v2.8 sticky grading bar (mobile) ----- */
         const sgbTaskIdx = () => { const ts = (window.state.current && window.state.current.tasks) || []; let i = ts.findIndex(t => t.isRunning); if (i >= 0) return i; for (let k = ts.length - 1; k >= 0; k--) { if (ts[k].manualStatus || ts[k].time > 0) return k; } return 0; };
-        window.sgbSetStatus = (st) => { const i = sgbTaskIdx(); const t = window.state.current && window.state.current.tasks && window.state.current.tasks[i]; if (!t) return; t.manualStatus = st; persistProgress(); window.renderTasks(); };
+        window.sgbSetStatus = (st) => { window.gradeTask(sgbTaskIdx(), st); };
         setInterval(() => {
             const timeEl = document.getElementById('sgb-time'); if (!timeEl) return;
             const i = sgbTaskIdx(); const t = window.state.current && window.state.current.tasks && window.state.current.tasks[i];
@@ -1362,6 +1378,7 @@
             if(dateEl) dateEl.value = c.date || ""; 
             if(instEl) instEl.value = c.instructor || ""; 
             if(idEl) idEl.value = c.id || "";
+            if (window.__autoStartNew) { window.__autoStartNew = false; if (c.tasks && c.tasks[0] && !c.tasks[0].isRunning) window.toggleTimer(0); }
             window.renderTasks();
         };
 
