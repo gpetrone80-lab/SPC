@@ -182,7 +182,7 @@
             <div class="flex items-center gap-3 w-full md:w-auto flex-wrap md:flex-nowrap">
                 <div class="bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm flex-1 md:flex-initial">
                     <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Active Instructor</p>
-                    <input type="text" id="instructor-name-input" aria-label="Active instructor name"oninput="localStorage.setItem('spc_instructor', this.value)" placeholder="Your Name" class="text-sm font-black text-slate-800 outline-none w-full md:w-32">
+                    <input type="text" id="instructor-name-input" aria-label="Active instructor name" oninput="localStorage.setItem('spc_instructor', this.value)" placeholder="Your Name" class="text-sm font-black text-slate-800 outline-none w-full md:w-32">
                 </div>
                 <details class="relative"><summary class="list-none cursor-pointer px-4 py-3 rounded-2xl bg-white border border-slate-200 shadow-sm font-black text-xs uppercase tracking-widest text-slate-700"><i class="fa-solid fa-ellipsis"></i> More</summary><div class="absolute right-0 top-full mt-2 w-60 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 space-y-1 z-40"><button id="install-btn" onclick="installApp()" class="install-cta hidden block w-full text-left px-4 py-3 rounded-xl bg-[#c9a227] font-black text-xs uppercase tracking-widest text-[#0b2340]"><i class="fa-solid fa-download"></i> Install App</button>
             <a href="manual.pdf" target="_blank" rel="noopener" class="block w-full px-4 py-3 rounded-xl bg-[#0b2340] font-black text-xs uppercase tracking-widest text-white no-underline"><i class="fa-solid fa-book-open"></i> Manual</a>
@@ -483,7 +483,7 @@
     <script type="module">
         import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, deleteDoc, updateDoc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, deleteDoc, updateDoc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, terminate, clearIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const appId = 'spc-fire-academy';
         const TASKS_CONFIG = [
@@ -554,6 +554,8 @@
         const notify = (msg) => spcSheet('SPC Fire', String(msg), [{ label: 'OK', value: true, style: SPC_BTN_OK }]);
         const askConfirm = (msg) => spcSheet('Please confirm', String(msg), [{ label: 'Cancel', value: false, style: SPC_BTN_CANCEL }, { label: 'Continue', value: true, style: SPC_BTN_OK }]);
 
+        const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const jsa = (s) => JSON.stringify(String(s ?? '')).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const app = initializeApp(firebaseConfig);
         window.state.auth = getAuth(app);
         try {
@@ -699,7 +701,15 @@
             } finally { btn.disabled = false; btn.innerText = "CREATE MASTER ADMIN"; }
         };
 
-        window.spcLogout = async () => { try { await signOut(window.state.auth); } catch (e) {} location.reload(); };
+        window.spcLogout = async () => {
+            try { await signOut(window.state.auth); } catch (e) {}
+            // Shared-device safety: clear this browser's cached records at sign-out,
+            // but never discard evaluations that have not uploaded yet.
+            if (!window.state.hasPending) {
+                try { await terminate(window.state.db); await clearIndexedDbPersistence(window.state.db); } catch (e) { console.warn('Local cache not cleared:', e); }
+            }
+            location.reload();
+        };
         window.togglePwVisible = () => {
             const i = document.getElementById('login-pass'); const b = document.getElementById('pw-toggle');
             if (!i) return;
@@ -720,12 +730,12 @@
             const el = document.getElementById('accounts-list'); if (!el) return;
             el.innerHTML = window.state.accounts.map(a => `
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 p-4">
-                    <div><b class="text-slate-800">${a.name || ''}</b> <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${a.role === 'admin' ? 'bg-amber-100 text-amber-700' : a.role === 'instructor' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}">${a.role}</span>
-                    <br><span class="text-[11px] font-bold text-slate-500">Login: ${a.loginEmail || (a.personId ? a.personId : a.uid)}${a.disabled ? ' · DEACTIVATED' : ''}</span></div>
+                    <div><b class="text-slate-800">${esc(a.name || '')}</b> <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${esc(a.role === 'admin' ? 'bg-amber-100 text-amber-700' : a.role === 'instructor' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700')}">${a.role}</span>
+                    <br><span class="text-[11px] font-bold text-slate-500">Login: ${esc(a.loginEmail || (a.personId ? a.personId : a.uid))}${a.disabled ? ' · DEACTIVATED' : ''}</span></div>
                     ${a.role !== 'admin' ? `<div class="flex gap-2">
-                        <button onclick="openPwReset('${a.uid}')" class="px-3 py-2 rounded-lg bg-amber-500 text-white font-black text-[10px] uppercase">Password</button>
-                        <button onclick="toggleAccount('${a.uid}', ${a.disabled ? 'false' : 'true'})" class="px-3 py-2 rounded-lg bg-slate-100 font-black text-[10px] uppercase">${a.disabled ? 'Reactivate' : 'Deactivate'}</button>
-                        <button onclick="removeAccount('${a.uid}')" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-black text-[10px] uppercase">Remove login</button>
+                        <button onclick="openPwReset(${jsa(a.uid)})" class="px-3 py-2 rounded-lg bg-amber-500 text-white font-black text-[10px] uppercase">Password</button>
+                        <button onclick="toggleAccount(${jsa(a.uid)}, ${a.disabled ? 'false' : 'true'})" class="px-3 py-2 rounded-lg bg-slate-100 font-black text-[10px] uppercase">${a.disabled ? 'Reactivate' : 'Deactivate'}</button>
+                        <button onclick="removeAccount(${jsa(a.uid)})" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-black text-[10px] uppercase">Remove login</button>
                     </div>` : '<span class="text-[10px] font-black uppercase text-amber-600">Master Admin</span>'}
                 </div>`).join('') || '<p class="p-6 text-slate-500 font-bold text-sm">No accounts yet.</p>';
         };
@@ -903,6 +913,7 @@
             onSnapshot(q, (snap) => {
                 window.state.evals = snap.docs.map(doc => ({ ...doc.data(), internalId: doc.id }))
                     .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+                window.state.hasPending = snap.metadata.hasPendingWrites;
                 updatePending(snap.metadata.hasPendingWrites);
                 window.refreshUI();
             }, (err) => console.error(err));
@@ -986,18 +997,18 @@
             const feed = document.getElementById('dashboard-feed');
             if (feed) {
                 feed.innerHTML = window.state.evals.slice(0, 10).map(e => `
-                    <tr><td class="px-6 py-4"><span class="font-black text-sm">${e.name}</span><br><span class="text-[10px] text-slate-500 font-bold uppercase">${e.id}</span></td>
+                    <tr><td class="px-6 py-4"><span class="font-black text-sm">${esc(e.name)}</span><br><span class="text-[10px] text-slate-500 font-bold uppercase">${esc(e.id)}</span></td>
                     <td class="px-6 py-4 uppercase font-black text-[10px] ${e.finalStatus === 'PASS' ? 'text-green-600' : 'text-red-600'}">${e.finalStatus}</td>
-                    <td class="px-6 py-4 text-[10px] font-bold text-slate-500">${e.date}</td>
-                    <td class="px-6 py-4 text-right"><button onclick="viewHistory('${e.id}')" class="bg-slate-100 px-3 py-1 rounded-lg text-red-600 font-black text-[10px] uppercase">Review</button></td></tr>
+                    <td class="px-6 py-4 text-[10px] font-bold text-slate-500">${esc(e.date)}</td>
+                    <td class="px-6 py-4 text-right"><button onclick="viewHistory(${jsa(e.id)})" class="bg-slate-100 px-3 py-1 rounded-lg text-red-600 font-black text-[10px] uppercase">Review</button></td></tr>
                 `).join('') || '<tr><td colspan="4" class="p-8 text-center text-slate-500 italic">No recent activity</td></tr>';
             }
             const dcards = document.getElementById('dash-cards');
             if (dcards) dcards.innerHTML = window.state.evals.slice(0, 10).map(e => `
                 <div class="p-4 flex items-center justify-between gap-3">
-                    <div class="min-w-0"><b class="text-slate-800 block truncate">${e.name}</b><p class="text-[11px] font-bold text-slate-500">${e.id} · ${e.date}</p></div>
+                    <div class="min-w-0"><b class="text-slate-800 block truncate">${esc(e.name)}</b><p class="text-[11px] font-bold text-slate-500">${esc(e.id)} · ${esc(e.date)}</p></div>
                     <div class="text-right shrink-0"><span class="text-[10px] font-black uppercase ${e.finalStatus === 'PASS' ? 'text-green-600' : 'text-red-600'}">${e.finalStatus}</span>
-                    <button onclick="viewHistory('${e.id}')" class="block ml-auto mt-1 text-red-600 font-black text-[10px] uppercase">Review</button></div>
+                    <button onclick="viewHistory(${jsa(e.id)})" class="block ml-auto mt-1 text-red-600 font-black text-[10px] uppercase">Review</button></div>
                 </div>`).join('') || '<div class="p-8 text-center"><i class="fa-solid fa-clipboard-list text-3xl text-slate-300"></i><p class="mt-3 text-slate-500 font-bold text-sm">No recent activity yet.</p></div>';
             if (window.state.activeTab === 'database') window.renderDatabase();
             if (window.state.activeTab === 'tracker') window.renderTracker();
@@ -1031,14 +1042,14 @@
                 <div class="space-y-6 fade-in">
                     <div class="flex flex-col md:flex-row items-center justify-between bg-slate-900 p-6 rounded-3xl text-white shadow-xl gap-4">
                         <div class="flex items-center gap-4">
-                            <div class="w-16 h-16 rounded-2xl bg-red-600 flex items-center justify-center font-black text-2xl">${cand.name[0]}</div>
+                            <div class="w-16 h-16 rounded-2xl bg-red-600 flex items-center justify-center font-black text-2xl">${esc(cand.name[0])}</div>
                             <div>
-                                <h2 class="text-2xl font-black uppercase tracking-tighter">${cand.name}</h2>
-                                <p class="text-slate-500 font-bold text-xs uppercase tracking-widest">ID: ${cand.id} | Class: ${cand.class || 'N/A'}</p>
+                                <h2 class="text-2xl font-black uppercase tracking-tighter">${esc(cand.name)}</h2>
+                                <p class="text-slate-500 font-bold text-xs uppercase tracking-widest">ID: ${esc(cand.id)} | Class: ${esc(cand.class || 'N/A')}</p>
                             </div>
                         </div>
                         <div class="flex gap-2 w-full md:w-auto">
-                            <button onclick="downloadCandidateReport('${cand.id}')" class="flex-1 bg-white/10 border border-white/30 hover:bg-white/20 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase transition-all">
+                            <button onclick="downloadCandidateReport(${jsa(cand.id)})" class="flex-1 bg-white/10 border border-white/30 hover:bg-white/20 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase transition-all">
                                 <i class="fa-solid fa-file-word mr-1"></i> Performance Dossier
                             </button>
                         </div>
@@ -1049,19 +1060,19 @@
                                 <div class="flex justify-between items-center mb-6">
                                     <div class="flex items-center gap-4">
                                         <span class="px-4 py-1 rounded-full bg-slate-100 text-slate-500 font-black text-[10px] uppercase">Attempt #${cand.attempts.length - idx}</span>
-                                        <h4 class="font-black text-slate-800 uppercase tracking-tight">${attempt.date}</h4>
+                                        <h4 class="font-black text-slate-800 uppercase tracking-tight">${esc(attempt.date)}</h4>
                                         <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${attempt.finalStatus === 'PASS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${attempt.finalStatus}</span>
-                                        ${attempt.lastCorrection ? `<span class="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase">Corrected: was ${attempt.lastCorrection.fromName} (${attempt.lastCorrection.fromId})</span>` : ''}
+                                        ${attempt.lastCorrection ? `<span class="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase">Corrected: was ${esc(attempt.lastCorrection.fromName)} (${esc(attempt.lastCorrection.fromId)})</span>` : ''}
                                     </div>
                                     <div class="flex items-center gap-2">
-                                        <button onclick="openReassign('${attempt.internalId}')" class="staff-only px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase transition-colors"><i class="fa-solid fa-user-pen mr-1"></i> Correct Student</button>
-                                        <button onclick="editEval('${attempt.internalId}')" aria-label="Edit evaluation" class="staff-only p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><i class="fa-solid fa-edit"></i></button>
+                                        <button onclick="openReassign(${jsa(attempt.internalId)})" class="staff-only px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase transition-colors"><i class="fa-solid fa-user-pen mr-1"></i> Correct Student</button>
+                                        <button onclick="editEval(${jsa(attempt.internalId)})" aria-label="Edit evaluation" class="staff-only p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><i class="fa-solid fa-edit"></i></button>
                                     </div>
                                 </div>
                                 <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
                                     ${attempt.tasks.map(t => `
                                         <div class="p-4 rounded-2xl border ${t.manualStatus === 'PASS' ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}">
-                                            <p class="text-[10px] font-black text-slate-500 uppercase truncate">${t.title}</p>
+                                            <p class="text-[10px] font-black text-slate-500 uppercase truncate">${esc(t.title)}</p>
                                             <p class="text-lg font-black">${formatTime(t.time)}</p>
                                             <span class="text-[10px] font-bold uppercase ${t.manualStatus === 'PASS' ? 'text-green-600' : 'text-red-600'}">${t.manualStatus || 'FAIL'}</span>
                                         </div>`).join('')}
@@ -1081,7 +1092,7 @@
             const wordHtml = `
                 <div style="text-align: center;">
                     <h1 style="color: #dc2626;">CANDIDATE PERFORMANCE HISTORY</h1>
-                    <h3>${name} (ID: ${candidateId})</h3>
+                    <h3>${esc(name)} (ID: ${esc(candidateId)})</h3>
                 </div>
             ` + candidateData.map(attempt => createAttemptHTMLForWord(attempt)).join('<br clear="all" style="page-break-before:always">');
             
@@ -1123,18 +1134,18 @@
             const csv = headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
             const a = document.createElement('a');
             a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-            a.download = `SPC_EOD_Report_${date}.csv`;
+            a.download = `SPC_EOD_Report_${esc(date)}.csv`;
             a.click();
 
             const coverPage = `
                 <div style="text-align: center; margin-bottom: 50px;">
                     <h1 style="font-size: 28pt; color: #dc2626;">DAILY ACADEMY DOSSIER</h1>
-                    <h2 style="color: #0f172a;">Compiled Records: ${date}</h2>
+                    <h2 style="color: #0f172a;">Compiled Records: ${esc(date)}</h2>
                     <p style="font-size: 14pt;">Total Evaluations: ${dailyRecords.length}</p>
                 </div><br clear="all" style="page-break-before:always">`;
 
             const fullContent = coverPage + dailyRecords.map(createAttemptHTMLForWord).join('<br clear="all" style="page-break-before:always">');
-            window.exportHTMLtoWord(fullContent, `SPC_Daily_Dossier_${date}`);
+            window.exportHTMLtoWord(fullContent, `SPC_Daily_Dossier_${esc(date)}`);
         };
 
         window.archiveDailyRecords = async () => {
@@ -1177,10 +1188,10 @@
 
         const createAttemptHTMLForWord = (a) => `
             <div style="margin-bottom: 40px;">
-                <h2 style="border-bottom: 2px solid #000; padding-bottom: 5px; color: #dc2626;">CANDIDATE: ${a.name}</h2>
+                <h2 style="border-bottom: 2px solid #000; padding-bottom: 5px; color: #dc2626;">CANDIDATE: ${esc(a.name)}</h2>
                 <table style="width: 100%; margin-bottom: 20px;">
-                    <tr><td><b>ID:</b> ${a.id}</td><td><b>Class:</b> ${a.class}</td></tr>
-                    <tr><td><b>Date:</b> ${a.date}</td><td><b>Instructor:</b> ${a.instructor}</td></tr>
+                    <tr><td><b>ID:</b> ${esc(a.id)}</td><td><b>Class:</b> ${esc(a.class)}</td></tr>
+                    <tr><td><b>Date:</b> ${esc(a.date)}</td><td><b>Instructor:</b> ${esc(a.instructor)}</td></tr>
                     <tr><td colspan="2"><b>FINAL STATUS:</b> <span style="color: ${a.finalStatus === 'PASS' ? '#16a34a' : '#dc2626'}">${a.finalStatus}</span></td></tr>
                 </table>
                 <table style="width: 100%; border-collapse: collapse;">
@@ -1192,9 +1203,9 @@
                     ${a.tasks.map(t => `
                         <tr>
                             <td style="border: 1px solid #ccc; padding: 8px;">
-                                <b>${t.title}</b><br>
+                                <b>${esc(t.title)}</b><br>
                                 <small>${Object.entries(t.checklistStates || {}).map(([k,v]) => (v ? "[X] " : "[ ] ") + k).join(', ')}</small>
-                                ${t.feedback ? `<p style="color: #64748b; font-style: italic;">Note: ${t.feedback}</p>` : ''}
+                                ${t.feedback ? `<p style="color: #64748b; font-style: italic;">Note: ${esc(t.feedback)}</p>` : ''}
                             </td>
                             <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">${formatTime(t.time)}</td>
                             <td style="border: 1px solid #ccc; padding: 8px; text-align: center; font-weight: bold;">${t.manualStatus}</td>
@@ -1309,9 +1320,9 @@
                 <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 ${t.manualStatus === 'PASS' ? 'ring-4 ring-green-400' : (t.manualStatus === 'FAIL' ? 'ring-4 ring-red-400' : '')}">
                     <div class="p-6 bg-slate-50 flex flex-col md:flex-row justify-between items-center gap-6 border-b">
                         <div class="flex items-center gap-4 flex-1">
-                            <span class="w-12 h-12 rounded-2xl bg-red-700 text-white flex items-center justify-center font-black text-xl">${t.id}</span>
+                            <span class="w-12 h-12 rounded-2xl bg-red-700 text-white flex items-center justify-center font-black text-xl">${esc(t.id)}</span>
                             <div class="flex-1">
-                                ${t.id >= 4 ? `<input type="text" value="${t.title}" oninput="window.state.current.tasks[${idx}].title=this.value; persistProgress();" class="bg-transparent border-b-2 border-slate-200 font-black text-lg text-slate-800 uppercase outline-none focus:border-red-600 w-full">` : `<h3 class="font-black text-lg text-slate-800 uppercase">${t.title}</h3>`}
+                                ${t.id >= 4 ? `<input type="text" value="${esc(t.title)}" oninput="window.state.current.tasks[${idx}].title=this.value; persistProgress();" class="bg-transparent border-b-2 border-slate-200 font-black text-lg text-slate-800 uppercase outline-none focus:border-red-600 w-full">` : `<h3 class="font-black text-lg text-slate-800 uppercase">${esc(t.title)}</h3>`}
                                 <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">LIMIT: ${t.limit} <span id="over-${idx}" class="ml-1 px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black ${t.time > t.limitSec ? '' : 'hidden'}">OVER LIMIT · AUTO FAIL</span></p>
                             </div>
                         </div>
@@ -1335,7 +1346,7 @@
                         </div>
                         <div class="bg-slate-50 p-4 rounded-2xl border">
                             <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2">Internal Note</label>
-                            <textarea oninput="window.state.current.tasks[${idx}].feedback=this.value; persistProgress();" class="w-full bg-white border border-slate-200 p-3 rounded-xl text-sm font-medium outline-none">${t.feedback || ""}</textarea>
+                            <textarea oninput="window.state.current.tasks[${idx}].feedback=this.value; persistProgress();" class="w-full bg-white border border-slate-200 p-3 rounded-xl text-sm font-medium outline-none">${esc(t.feedback || "")}</textarea>
                         </div>
                         <div class="flex items-center gap-2">
                             <button onclick="window.gradeTask(${idx}, 'PASS')" ${t.autoFailed ? 'disabled' : ''} class="flex-1 bigpf py-4 rounded-xl font-black text-xs uppercase transition-all ${t.autoFailed ? 'opacity-40 cursor-not-allowed' : ''} ${(t.manualStatus === 'PASS' ? 'bg-green-600 text-white shadow-lg' : 'bg-slate-100 border')}">Pass</button>
@@ -1418,8 +1429,8 @@
             if (instList) {
                 instList.innerHTML = window.state.roster.instructors.map(i => `
                     <div class="flex items-center justify-between p-3 bg-slate-50 border rounded-xl">
-                        <span class="font-bold text-slate-700">${i.name}</span>
-                        <button onclick="removeRosterItem('instructors', '${i.id}')" class="admin-only text-red-500 hover:text-red-600 p-1" aria-label="Remove">
+                        <span class="font-bold text-slate-700">${esc(i.name)}</span>
+                        <button onclick="removeRosterItem('instructors', ${jsa(i.id)})" class="admin-only text-red-500 hover:text-red-600 p-1" aria-label="Remove">
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>`).join('');
@@ -1429,10 +1440,10 @@
                 candList.innerHTML = window.state.roster.candidates.map(c => `
                     <div class="flex items-center justify-between p-3 bg-slate-50 border rounded-xl">
                         <div>
-                            <b class="text-slate-800">${c.name}</b><br>
-                            <span class="text-[10px] uppercase font-black text-slate-500">ID: ${c.id}</span>
+                            <b class="text-slate-800">${esc(c.name)}</b><br>
+                            <span class="text-[10px] uppercase font-black text-slate-500">ID: ${esc(c.id)}</span>
                         </div>
-                        <button onclick="removeRosterItem('candidates', '${c.internalId}')" class="admin-only text-red-500 hover:text-red-600 p-1" aria-label="Remove">
+                        <button onclick="removeRosterItem('candidates', ${jsa(c.internalId)})" class="admin-only text-red-500 hover:text-red-600 p-1" aria-label="Remove">
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>`).join('');
@@ -1442,8 +1453,8 @@
         const updateFormDropdowns = () => {
             const instSelect = document.getElementById('quick-instructor-select');
             const candSelect = document.getElementById('quick-candidate-select');
-            if (instSelect) instSelect.innerHTML = '<option value="">-- Manual Entry --</option>' + window.state.roster.instructors.map(i => `<option value="${i.name}">${i.name}</option>`).join('');
-            if (candSelect) candSelect.innerHTML = '<option value="">-- Manual Entry --</option>' + window.state.roster.candidates.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            if (instSelect) instSelect.innerHTML = '<option value="">-- Manual Entry --</option>' + window.state.roster.instructors.map(i => `<option value="${esc(i.name)}">${esc(i.name)}</option>`).join('');
+            if (candSelect) candSelect.innerHTML = '<option value="">-- Manual Entry --</option>' + window.state.roster.candidates.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
         };
 
         window.autoFillInstructor = (name) => { if(name) document.getElementById('eval-instructor').value = name; persistProgress(); };
@@ -1478,10 +1489,10 @@
             window.__filteredEvals = filtered;
             if(listEl) {
                 listEl.innerHTML = filtered.map(e => `
-                    <tr><td class="px-6 py-4"><b>${e.name}</b><br><span class="text-[10px] text-slate-500">${e.date}</span></td>
-                    <td class="px-6 py-4 text-xs font-bold">${e.instructor}</td>
+                    <tr><td class="px-6 py-4"><b>${esc(e.name)}</b><br><span class="text-[10px] text-slate-500">${esc(e.date)}</span></td>
+                    <td class="px-6 py-4 text-xs font-bold">${esc(e.instructor)}</td>
                     <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-[10px] font-black uppercase ${e.finalStatus === 'PASS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${e.finalStatus}</span></td>
-                    <td class="px-6 py-4 text-right"><button onclick="openReassign('${e.internalId}')" title="Move this record to the correct student" class="staff-only px-3 py-2 mr-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase"><i class="fa-solid fa-user-pen"></i> Correct Student</button><button onclick="deleteEval('${e.internalId}')" aria-label="Delete record" class="staff-only text-red-500 hover:text-red-600"><i class="fa-solid fa-trash"></i></button></td></tr>
+                    <td class="px-6 py-4 text-right"><button onclick="openReassign(${jsa(e.internalId)})" title="Move this record to the correct student" class="staff-only px-3 py-2 mr-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase"><i class="fa-solid fa-user-pen"></i> Correct Student</button><button onclick="deleteEval(${jsa(e.internalId)})" aria-label="Delete record" class="staff-only text-red-500 hover:text-red-600"><i class="fa-solid fa-trash"></i></button></td></tr>
                 `).join('');
             }
             const cardsEl = document.getElementById('db-cards');
@@ -1489,10 +1500,10 @@
                 cardsEl.innerHTML = filtered.map(e => {
                     const tline = (e.tasks || []).map((t, i) => (t.time && t.time !== '00:00') ? 'T' + (i + 1) + ' ' + t.time : null).filter(Boolean).join(' · ');
                     return `<div class="p-4">
-                        <div class="flex items-center justify-between gap-2"><b class="text-slate-800">${e.name}</b><span class="px-2 py-1 rounded-full text-[10px] font-black uppercase ${e.finalStatus === 'PASS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${e.finalStatus}</span></div>
-                        <p class="text-[11px] font-bold text-slate-500 mt-1">${e.id} · Class ${e.class || '—'} · ${e.date} · Instr. ${e.instructor || '—'}</p>
+                        <div class="flex items-center justify-between gap-2"><b class="text-slate-800">${esc(e.name)}</b><span class="px-2 py-1 rounded-full text-[10px] font-black uppercase ${e.finalStatus === 'PASS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${e.finalStatus}</span></div>
+                        <p class="text-[11px] font-bold text-slate-500 mt-1">${esc(e.id)} · Class ${esc(e.class || '—')} · ${esc(e.date)} · Instr. ${esc(e.instructor || '—')}</p>
                         ${tline ? `<p class="text-[11px] font-bold text-slate-500 mt-0.5">${tline}</p>` : ''}
-                        <div class="flex gap-2 mt-2.5"><button onclick="openReassign('${e.internalId}')" class="staff-only flex-1 px-3 py-2.5 rounded-lg bg-amber-500 text-white font-black text-[10px] uppercase">Correct Student</button><button onclick="deleteEval('${e.internalId}')" class="staff-only px-3 py-2.5 rounded-lg bg-red-50 text-red-500 font-black text-[10px] uppercase">Delete</button></div>
+                        <div class="flex gap-2 mt-2.5"><button onclick="openReassign(${jsa(e.internalId)})" class="staff-only flex-1 px-3 py-2.5 rounded-lg bg-amber-500 text-white font-black text-[10px] uppercase">Correct Student</button><button onclick="deleteEval(${jsa(e.internalId)})" class="staff-only px-3 py-2.5 rounded-lg bg-red-50 text-red-500 font-black text-[10px] uppercase">Delete</button></div>
                     </div>`;
                 }).join('') || '<div class="p-10 text-center"><i class="fa-solid fa-magnifying-glass text-3xl text-slate-300"></i><p class="mt-3 text-slate-500 font-bold text-sm">No records match these filters.</p></div>';
             }
@@ -1510,7 +1521,7 @@
             document.getElementById('reassign-summary').innerText = 'Currently logged to: ' + rec.name + ' (' + rec.id + ') · ' + rec.date + ' · ' + rec.finalStatus;
             const sel = document.getElementById('reassign-select');
             const cands = (window.state.roster.candidates || []);
-            sel.innerHTML = '<option value="">— Pick the correct student —</option>' + cands.map(c => `<option value="${c.internalId}">${c.name} — ${c.id}${c.class ? ' · Class ' + c.class : ''}</option>`).join('');
+            sel.innerHTML = '<option value="">— Pick the correct student —</option>' + cands.map(c => `<option value="${esc(c.internalId)}">${esc(c.name)} — ${esc(c.id)}${esc(c.class ? ' · Class ' + c.class : '')}</option>`).join('');
             document.getElementById('reassign-name').value = '';
             document.getElementById('reassign-id').value = '';
             document.getElementById('reassign-class').value = '';

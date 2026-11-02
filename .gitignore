@@ -1,0 +1,9 @@
+# Local/secret files: never commit these
+.env
+.env.*
+*.local
+*.log
+node_modules/
+.firebase/
+.DS_Store
+Thumbs.db
