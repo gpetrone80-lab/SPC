@@ -5,7 +5,7 @@
  * Evaluation data itself lives in Firestore's on-device persistent cache
  * and uploads automatically when connectivity returns.
  */
-const CACHE_NAME = 'spc-fire-academy-v21';
+const CACHE_NAME = 'spc-fire-academy-v22';
 const ASSETS_TO_CACHE = [
   './index.html',
   './manifest.json',
@@ -15,7 +15,7 @@ const ASSETS_TO_CACHE = [
   './icon-512.png',
   './icon-maskable-512.png',
   './apple-touch-icon.png',
-  'https://cdn.tailwindcss.com',
+  './tailwind.css',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap'
 ];
