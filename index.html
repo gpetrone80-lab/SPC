@@ -1218,7 +1218,6 @@
             localStorage.removeItem('spc_draft_eval');
             const badge = document.getElementById('resume-badge');
             if(badge) badge.classList.add('hidden');
-            window.__autoStartNew = true;
             window.switchTab('evaluation'); 
             window.updateFormInputs();
         };
@@ -1377,9 +1376,7 @@
             if(classEl) classEl.value = c.class || ""; 
             if(dateEl) dateEl.value = c.date || ""; 
             if(instEl) instEl.value = c.instructor || ""; 
-            if(idEl) idEl.value = c.id || "";
-            if (window.__autoStartNew) { window.__autoStartNew = false; if (c.tasks && c.tasks[0] && !c.tasks[0].isRunning) window.toggleTimer(0); }
-            window.renderTasks();
+            if(idEl) idEl.value = c.id || "";            window.renderTasks();
         };
 
         window.addRosterItem = async (type) => {
