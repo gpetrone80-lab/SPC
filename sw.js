@@ -5,7 +5,7 @@
  * Evaluation data itself lives in Firestore's on-device persistent cache
  * and uploads automatically when connectivity returns.
  */
-const CACHE_NAME = 'spc-fire-academy-v22';
+const CACHE_NAME = 'spc-fire-academy-v23';
 const ASSETS_TO_CACHE = [
   './index.html',
   './manifest.json',

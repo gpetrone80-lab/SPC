@@ -35,7 +35,8 @@ service cloud.firestore {
       // Admin can create accounts for others; the very first admin may create their own during setup.
       allow create: if isAdmin()
         || (signedIn() && request.auth.uid == uid && !bootExists() && request.resource.data.role == 'admin');
-      allow update: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      // Only the Master Admin edits profiles. Users can no longer change their own role, personId or disabled flag.
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -52,12 +53,12 @@ service cloud.firestore {
     }
 
     match /artifacts/spc-fire-academy/public/data/instructors/{docId} {
-      allow read: if active();
+      allow read: if isStaff();   // roster is staff-only; students never load it
       allow create, update, delete: if isAdmin();
     }
 
     match /artifacts/spc-fire-academy/public/data/candidates/{docId} {
-      allow read: if active();
+      allow read: if isStaff();   // roster is staff-only; students never load it
       allow create, update, delete: if isAdmin();
     }
 
