@@ -1,0 +1,17 @@
+{
+  "name": "spc-tests",
+  "private": true,
+  "description": "Local-only tests: Firestore rules + full app run against the Firebase emulators. Never touches the live project.",
+  "scripts": {
+    "sync-rules": "node -e \"require('fs').copyFileSync('../firestore.rules','firestore.rules')\"",
+    "test:rules": "npm run sync-rules && firebase emulators:exec --only firestore --project demo-spc \"node rules.test.mjs\"",
+    "test:app": "npm run sync-rules && firebase emulators:exec --only firestore,auth --project fireacademy1-c8ef2 \"node e2e.cjs\"",
+    "test": "npm run test:rules && npm run test:app"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "11.6.1",
+    "firebase-tools": "^13.35.1",
+    "playwright": "^1.48.0"
+  }
+}

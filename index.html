@@ -47,6 +47,7 @@
         body.is-student .staff-only { display: none !important; }
         body.is-student #eod-card { display: none !important; }
         body:not(.is-admin) #nav-accounts { display: none !important; }
+        body.is-student #nav-dashboard, body.is-student #nav-evaluation, body.is-student #nav-roster { display: none !important; }
         #bottomnav { display: none; }
         @media (max-width: 767px) {
             #bottomnav { display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 60; background: #0b2340; padding: 8px 6px calc(8px + env(safe-area-inset-bottom)); justify-content: space-around; }

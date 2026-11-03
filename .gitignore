@@ -7,3 +7,8 @@ node_modules/
 .firebase/
 .DS_Store
 Thumbs.db
+tests/node_modules/
+tests/shots/
+tests/package-lock.json
+tests/*.log
+tests/firestore.rules

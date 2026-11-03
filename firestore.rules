@@ -14,7 +14,7 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function hasProfile() { return signedIn() && exists(profPath()); }
     function prof() { return get(profPath()).data; }
-    function active() { return hasProfile() && prof().disabled != true; }
+    function active() { return hasProfile() && prof().get('disabled', false) != true; }  // missing field = active
     function isAdmin() { return active() && prof().role == 'admin'; }
     function isStaff() { return active() && (prof().role == 'admin' || prof().role == 'instructor'); }
     function bootPath() {
