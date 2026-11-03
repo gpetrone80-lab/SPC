@@ -971,12 +971,44 @@
             const el = document.getElementById('device-save-stamp');
             if (el) el.innerText = iso ? 'Saved on device ✓ ' + new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
         };
+        /* v2.13.1: Save to Device also downloads a CSV of the open evaluation (one row per task). */
+        const csvCell = (v) => {
+            let s = String(v == null ? '' : v);
+            if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;   // stop Excel treating names/notes as formulas
+            return '"' + s.replace(/"/g, '""') + '"';
+        };
+        const fileSafe = (s) => String(s || '').trim().replace(/[^\w.-]+/g, '_').replace(/^_+|_+$/g, '');
+        const downloadEvalCsv = () => {
+            const val = (id) => (document.getElementById(id) || {}).value || '';
+            const f = { name: val('eval-name'), id: val('eval-id'), cls: val('eval-class'), inst: val('eval-instructor'), date: val('eval-date') };
+            const headers = ["Candidate", "ID", "Class", "Instructor", "Date", "Task", "Time", "Limit", "Grade", "Checklist", "Feedback"];
+            const rows = (window.state.current.tasks || []).map(t => {
+                const states = Object.values(t.checklistStates || {});
+                const over = t.autoFailed || (t.limitSec && t.time > t.limitSec);
+                return [f.name, f.id, f.cls, f.inst, f.date, t.title, formatTime(t.time || 0), t.limit || '',
+                        over ? 'FAIL (OVER LIMIT)' : (t.manualStatus || ''),
+                        states.filter(Boolean).length + '/' + states.length, t.feedback || ''].map(csvCell).join(',');
+            });
+            const csv = '﻿' + headers.map(csvCell).join(',') + '\r\n' + rows.join('\r\n') + '\r\n';
+            const fname = ['SPC_Eval', fileSafe(f.id), fileSafe(f.name), fileSafe(f.date)].filter(Boolean).join('_') + '.csv';
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+            a.download = fname;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+            return fname;
+        };
         window.saveToDevice = () => {
             if (!window.state.current) return;
             window.state.current.deviceSavedAt = new Date().toISOString();
-            try { persistProgress(true); } catch (e) { return notify("Could not save on this device — storage is full or blocked. Use Save to Cloud."); }
+            let saved = true;
+            try { persistProgress(true); } catch (e) { saved = false; }
+            let fname = null;
+            try { fname = downloadEvalCsv(); } catch (e) { fname = null; }
+            const csvLine = fname ? "\n\nA CSV copy was downloaded to this device (" + fname + ")." : "\n\nThe CSV copy could not be downloaded on this device.";
+            if (!saved) return notify("Could not save on this device — storage is full or blocked. Use Save to Cloud." + csvLine);
             showDeviceStamp(window.state.current.deviceSavedAt);
-            notify("Saved on this device ✓\n\nEverything on this form is kept on this phone/tablet, even if the app closes. Press Save to Cloud when you're ready to upload.");
+            notify("Saved on this device ✓\n\nEverything on this form is kept on this phone/tablet, even if the app closes. Press Save to Cloud when you're ready to upload." + csvLine);
         };
         const draftHasContent = () => {
             const c = window.state.current;

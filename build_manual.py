@@ -21,7 +21,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (HRFlowable, Image, KeepTogether, Paragraph,
                                 SimpleDocTemplate, Spacer, Table, TableStyle)
 
-VERSION = "2.13"
+VERSION = "2.13.1"
 DATE = "November 2026"
 SITE = "https://gpetrone80-lab.github.io/SPC/"
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -128,7 +128,7 @@ SECTIONS = [
             "Pick the instructor and the candidate from the pick-lists (or type name, ID #, class, date by hand).",
             "For each task: tap START to run the big timer — no timer starts by itself, not even Task 1. PAUSE stops it. Tick the checklist items as the student performs them.",
             "Tap PASS or FAIL for the task and type any feedback note. PASS or FAIL also stops that task's timer and keeps the recorded time.",
-            "Want to lock in your progress before uploading? Tap SAVE TO DEVICE (DEVICE on the phone bar). Everything on the form stays on this phone or tablet, even if the app closes, and “Saved on device ✓” shows the time.",
+            "Want to lock in your progress before uploading? Tap SAVE TO DEVICE (DEVICE on the phone bar). Everything on the form stays on this phone or tablet, even if the app closes, and “Saved on device ✓” shows the time. It also downloads a CSV copy of the evaluation (one row per task: time, limit, grade, checklist count, feedback) named SPC_Eval_ID_Name_Date.csv. On Android it goes to Downloads; on iPhone/iPad tap Share → Save to Files.",
             "At the bottom, tap SAVE TO CLOUD. “Saved ✓” means it is on the device; if you are offline it uploads automatically later (watch for the “Pending upload” badge to clear). The device copy is removed once it is saved to the cloud.",
         ]),
         ("note", "Over the time limit = automatic FAIL. The task shows a red OVER LIMIT · AUTO FAIL badge and PASS is locked. The timer keeps running so the student's full time is recorded — tap PAUSE when they finish."),
