@@ -1,6 +1,6 @@
 # SPC Fire College — Big Two Tracker · User Manual
 
-Website: https://gpetrone80-lab.github.io/SPC/ · Version 2.12.1 — November 2026
+Website: https://gpetrone80-lab.github.io/SPC/ · Version 2.13 — November 2026
 
 This manual has one section per role. Find your role and follow it — every task is a short numbered list.
 
@@ -98,13 +98,15 @@ As Admin you can do everything an instructor can: grade, run reports, use End-of
 2. Pick the instructor and the candidate from the pick-lists (or type name, ID #, class, date by hand).
 3. For each task: tap START to run the big timer — no timer starts by itself, not even Task 1. PAUSE stops it. Tick the checklist items as the student performs them.
 4. Tap PASS or FAIL for the task and type any feedback note. PASS or FAIL also stops that task's timer and keeps the recorded time.
-5. At the bottom, tap SAVE. “Saved ✓” means it is on the device; if you are offline it uploads automatically later (watch for the “Pending upload” badge to clear).
+5. Want to lock in your progress before uploading? Tap SAVE TO DEVICE (DEVICE on the phone bar). Everything on the form stays on this phone or tablet, even if the app closes, and “Saved on device ✓” shows the time.
+6. At the bottom, tap SAVE TO CLOUD. “Saved ✓” means it is on the device; if you are offline it uploads automatically later (watch for the “Pending upload” badge to clear). The device copy is removed once it is saved to the cloud.
 
 > **Note:** Over the time limit = automatic FAIL. The task shows a red OVER LIMIT · AUTO FAIL badge and PASS is locked. The timer keeps running so the student's full time is recorded — tap PAUSE when they finish.
 
-- On a phone, a navy bar stays pinned at the bottom of this screen with the current task's timer, PASS / FAIL, and SAVE — you never scroll to save mid-drill.
+- On a phone, a navy bar stays pinned at the bottom of this screen with the current task's timer, PASS / FAIL, DEVICE, and SAVE — you never scroll to save mid-drill.
 - The 5 tasks: 1) PPE – SCBA – Hose Pull Pattern (limit 4:40) · 2) Rope and Knots (2:00) · 3) Ladder Raise & Search (4:40) · 4–5) Custom Drills (5:00 — you can rename these two in the form).
-- Closed the form by accident? The draft is saved on the device and offered back when you return (“Resumed from Memory”). Timers come back paused — tap START to continue.
+- Closed the form by accident? The draft is saved on the device and offered back when you return (“Resumed from Memory”). A running timer saves itself every 5 seconds. Timers come back paused — tap START to continue.
+- Clear Form or New Evaluation asks “Discard this evaluation?” before erasing a form that has work on it. Tap Cancel to keep it.
 
 ### Find one student's full history
 

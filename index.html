@@ -71,6 +71,15 @@
             #sticky-gradebar { display: flex; }
         }
         #auth-overlay input { color: #0f172a; }
+        /* v2.13: three footer buttons — stack below 1280px so SAVE TO CLOUD never runs off-screen */
+        #eval-footer-btns { flex-wrap: wrap; }
+        @media (max-width: 1279px) {
+            #eval-footer { flex-direction: column !important; }
+            #eval-footer > div:first-child { text-align: center !important; }
+            #eval-footer-actions { width: 100% !important; }
+            #eval-footer-btns button { flex: 1 1 0 !important; padding-left: 1rem !important; padding-right: 1rem !important; }
+            #eval-footer-btns #save-btn { flex: 1 1 100% !important; }
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col md:flex-row">
@@ -121,7 +130,7 @@
             <button onclick="switchTab('tracker')" id="nav-tracker" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-slate-500 hover:bg-slate-800 hover:text-white text-left">
                 <i class="fa-solid fa-clock-rotate-left w-5"></i> History Tracker
             </button>
-            <button onclick="prepareNewEvaluation()" id="nav-evaluation" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-slate-500 hover:bg-slate-800 hover:text-white text-left">
+            <button onclick="startNewEvaluation()" id="nav-evaluation" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-slate-500 hover:bg-slate-800 hover:text-white text-left">
                 <i class="fa-solid fa-plus w-5"></i> New Evaluation
             </button>
             <button onclick="switchTab('roster')" id="nav-roster" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-slate-500 hover:bg-slate-800 hover:text-white text-left">
@@ -168,7 +177,7 @@
     <nav id="bottomnav" class="no-print">
             <button data-bnav="dashboard" onclick="switchTab('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x='3' y='3' width='8' height='8' rx='1.5'/><rect x='13' y='3' width='8' height='8' rx='1.5'/><rect x='3' y='13' width='8' height='8' rx='1.5'/><rect x='13' y='13' width='8' height='8' rx='1.5'/></svg><span>Dashboard</span></button>
             <button data-bnav="tracker" onclick="switchTab('tracker')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx='12' cy='12' r='9'/><path d='M12 7v5l3.5 2'/></svg><span>History</span></button>
-            <button data-bnav="evaluation" class="staff-only" onclick="prepareNewEvaluation()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d='M12 5v14M5 12h14'/></svg><span>Eval</span></button>
+            <button data-bnav="evaluation" class="staff-only" onclick="startNewEvaluation()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d='M12 5v14M5 12h14'/></svg><span>Eval</span></button>
             <button data-bnav="roster" class="staff-only" onclick="switchTab('roster')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx='9' cy='8' r='3.5'/><path d='M2.5 20c.8-3.2 3.4-5 6.5-5s5.7 1.8 6.5 5M16 4.6a3.5 3.5 0 010 6.8M17.5 15.4c2 .6 3.5 2.1 4 4.6'/></svg><span>Roster</span></button>
             <button data-bnav="database" onclick="switchTab('database')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d='M4 20V10M10 20V4M16 20v-7M2 20h20'/></svg><span>Reports</span></button>
             <button onclick="spcLogout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d='M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9'/></svg><span>Sign out</span></button>
@@ -189,7 +198,7 @@
             <a href="manual.pdf" target="_blank" rel="noopener" class="block w-full px-4 py-3 rounded-xl bg-[#0b2340] font-black text-xs uppercase tracking-widest text-white no-underline"><i class="fa-solid fa-book-open"></i> Manual</a>
             <button onclick="spcLogout()" class="block w-full text-left px-4 py-3 rounded-xl border border-slate-200 font-black text-xs uppercase tracking-widest text-slate-700"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button></div></details>
                 <span id="role-chip" class="hidden md:inline-block px-3 py-2 rounded-full bg-[#0b2340] text-white text-[10px] font-black uppercase tracking-widest"></span>
-                <button id="new-entry-btn" onclick="prepareNewEvaluation()" class="staff-only bg-[#c9a227] hover:bg-[#b08d1f] text-slate-900 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-2">
+                <button id="new-entry-btn" onclick="startNewEvaluation()" class="staff-only bg-[#c9a227] hover:bg-[#b08d1f] text-slate-900 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-2">
                     <i class="fa-solid fa-plus"></i> NEW ENTRY
                 </button>
             </div>
@@ -298,16 +307,22 @@
             
             <div id="tasks-list" class="space-y-8"></div>
             
-            <footer class="bg-slate-900 p-8 rounded-3xl shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6 no-print">
+            <footer id="eval-footer" class="bg-slate-900 p-8 rounded-3xl shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6 no-print">
                 <div class="text-white text-center md:text-left">
                     <h4 class="font-black text-xl uppercase tracking-tighter">Commit Entry</h4>
                     <p class="text-slate-500 text-[10px] font-medium uppercase tracking-widest">Data will sync when online</p>
                 </div>
-                <div class="flex gap-4 w-full md:w-auto">
-                    <button onclick="prepareNewEvaluation()" class="flex-1 md:flex-none bg-slate-800 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs">Clear Form</button>
+                <div id="eval-footer-actions" class="w-full md:w-auto">
+                <div id="eval-footer-btns" class="flex gap-4 w-full md:w-auto">
+                    <button onclick="startNewEvaluation()" class="flex-1 md:flex-none bg-slate-800 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs">Clear Form</button>
+                    <button id="device-save-btn" onclick="saveToDevice()" class="flex-1 md:flex-none bg-[#0b2340] text-white px-8 py-4 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2" style="border:2px solid #c9a227">
+                        <i class="fa-solid fa-floppy-disk"></i> SAVE TO DEVICE
+                    </button>
                     <button id="save-btn" onclick="saveEvaluation()" class="flex-1 md:flex-none bg-[#c9a227] text-[#0b2340] px-12 py-4 rounded-2xl font-black uppercase shadow-xl hover:bg-[#b08d1f] transition-all flex items-center justify-center gap-2">
                         <i class="fa-solid fa-cloud-arrow-up"></i> SAVE TO CLOUD
                     </button>
+                </div>
+                <p id="device-save-stamp" role="status" aria-live="polite" style="color:#c9a227;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;text-align:center;margin-top:10px;min-height:14px"></p>
                 </div>
             </footer>
                     <div id="sticky-gradebar">
@@ -315,9 +330,10 @@
                     <span id="sgb-label" style="font-size:10px;font-weight:900;color:#c9a227;letter-spacing:.08em">TASK 1</span>
                     <span id="sgb-time" style="font-size:19px;font-weight:900;color:#fff;font-variant-numeric:tabular-nums">00:00</span>
                 </div>
-                <button onclick="sgbSetStatus('PASS')" style="flex:1;padding:13px;border-radius:12px;background:#16a34a;color:#fff;font-weight:900;border:0">PASS</button>
-                <button onclick="sgbSetStatus('FAIL')" style="flex:1;padding:13px;border-radius:12px;background:#dc2626;color:#fff;font-weight:900;border:0">FAIL</button>
-                <button onclick="saveEvaluation()" style="flex:1.2;padding:13px;border-radius:12px;background:#c9a227;color:#0b2340;font-weight:900;border:0">SAVE</button>
+                <button onclick="sgbSetStatus('PASS')" style="flex:1;min-width:0;padding:13px 4px;border-radius:12px;background:#16a34a;color:#fff;font-weight:900;border:0">PASS</button>
+                <button onclick="sgbSetStatus('FAIL')" style="flex:1;min-width:0;padding:13px 4px;border-radius:12px;background:#dc2626;color:#fff;font-weight:900;border:0">FAIL</button>
+                <button onclick="saveToDevice()" aria-label="Save to device" style="flex:.9;min-width:0;padding:6px 4px;line-height:1.3;border-radius:12px;background:#fff;color:#0b2340;font-weight:900;font-size:11px;border:0"><i class="fa-solid fa-floppy-disk"></i> DEVICE</button>
+                <button onclick="saveEvaluation()" style="flex:1.1;min-width:0;padding:13px 4px;border-radius:12px;background:#c9a227;color:#0b2340;font-weight:900;border:0">SAVE</button>
             </div>
         </section>
 
@@ -646,7 +662,7 @@
             // v2.9: home-screen shortcuts can deep-link (?tab=evaluation|database|tracker|...)
             try {
                 const want = new URLSearchParams(window.location.search).get('tab');
-                if (want === 'evaluation' && isStaff()) { window.prepareNewEvaluation(); }
+                if (want === 'evaluation' && isStaff()) { if (localStorage.getItem('spc_draft_eval')) window.switchTab('evaluation'); else window.prepareNewEvaluation(); }
                 else if (want && ['dashboard', 'tracker', 'database', 'roster', 'accounts'].includes(want) && !(isStudent() && (want === 'roster' || want === 'accounts'))) { window.switchTab(want); }
             } catch (e) {}
             if (isStudent()) {
@@ -935,8 +951,8 @@
             });
         };
 
-        window.persistProgress = () => {
-            if (window.state.activeTab === 'evaluation') {
+        window.persistProgress = (force) => {
+            if (force || window.state.activeTab === 'evaluation') {
                 const data = {
                     ...window.state.current,
                     name: document.getElementById('eval-name').value,
@@ -949,6 +965,33 @@
             }
         };
 
+        /* v2.13: explicit Save to Device. Same single on-device slot as the auto-draft; it stays
+           until Save to Cloud succeeds or the instructor confirms a discard. */
+        const showDeviceStamp = (iso) => {
+            const el = document.getElementById('device-save-stamp');
+            if (el) el.innerText = iso ? 'Saved on device ✓ ' + new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+        };
+        window.saveToDevice = () => {
+            if (!window.state.current) return;
+            window.state.current.deviceSavedAt = new Date().toISOString();
+            try { persistProgress(true); } catch (e) { return notify("Could not save on this device — storage is full or blocked. Use Save to Cloud."); }
+            showDeviceStamp(window.state.current.deviceSavedAt);
+            notify("Saved on this device ✓\n\nEverything on this form is kept on this phone/tablet, even if the app closes. Press Save to Cloud when you're ready to upload.");
+        };
+        const draftHasContent = () => {
+            const c = window.state.current;
+            if (!c) return false;
+            if (['eval-name', 'eval-id'].some(id => (document.getElementById(id) || {}).value)) return true;
+            return (c.tasks || []).some(t => t.time > 0 || t.feedback || Object.values(t.checklistStates || {}).some(Boolean));
+        };
+        window.startNewEvaluation = async () => {
+            if (draftHasContent() && !await askConfirm("Discard this evaluation?\n\nThe unsaved form for " + ((document.getElementById('eval-name') || {}).value || 'this candidate') + " will be erased from this device. Press Cancel to keep working on it.")) {
+                window.switchTab('evaluation');
+                return;
+            }
+            window.prepareNewEvaluation();
+        };
+
         const checkDraft = () => {
             const draft = localStorage.getItem('spc_draft_eval');
             if (draft) {
@@ -956,6 +999,7 @@
                 window.state.current = parsed;
                 (parsed.tasks || []).forEach((t) => { t.isRunning = false; });
                 document.getElementById('resume-badge').classList.remove('hidden');
+                showDeviceStamp(parsed.deviceSavedAt);
                 window.updateFormInputs();
             }
         };
@@ -1228,6 +1272,7 @@
                 })) 
             };
             localStorage.removeItem('spc_draft_eval');
+            showDeviceStamp(null);
             const badge = document.getElementById('resume-badge');
             if(badge) badge.classList.add('hidden');
             window.switchTab('evaluation'); 
@@ -1256,6 +1301,7 @@
                 t.isRunning = true;
                 window.state.timers[idx] = setInterval(() => {
                     t.time++; if (t.time === t.limitSec + 1) window.renderTasks();
+                    if (t.time % 5 === 0) persistProgress(true); // v2.13: a running timer saves itself every 5 s
                     const el = document.getElementById(`t-val-${idx}`);
                     if (el) {
                         el.innerText = formatTime(t.time);
@@ -1293,6 +1339,7 @@
                 updatedAt: new Date().toISOString(),
                 finalStatus: window.state.current.tasks.every(t => t.manualStatus === 'PASS') ? 'PASS' : 'FAIL'
             };
+            delete record.deviceSavedAt; // device-only stamp, not part of the cloud record
 
             try {
                 const docId = window.state.editingId || 'rec_' + Date.now();
