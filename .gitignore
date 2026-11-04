@@ -12,3 +12,5 @@ tests/shots/
 tests/package-lock.json
 tests/*.log
 tests/firestore.rules
+.claude/
+CLAUDE.md

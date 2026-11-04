@@ -1,6 +1,6 @@
 # SPC Fire College — Big Two Tracker · User Manual
 
-Website: https://gpetrone80-lab.github.io/SPC/ · Version 2.13.1 — November 2026
+Website: https://gpetrone80-lab.github.io/SPC/ · Version 2.13.2 — November 2026
 
 This manual has one section per role. Find your role and follow it — every task is a short numbered list.
 

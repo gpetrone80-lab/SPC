@@ -21,7 +21,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (HRFlowable, Image, KeepTogether, Paragraph,
                                 SimpleDocTemplate, Spacer, Table, TableStyle)
 
-VERSION = "2.13.1"
+VERSION = "2.13.2"
 DATE = "November 2026"
 SITE = "https://gpetrone80-lab.github.io/SPC/"
 HERE = os.path.dirname(os.path.abspath(__file__))

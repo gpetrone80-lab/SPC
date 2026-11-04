@@ -667,7 +667,7 @@
             } catch (e) {}
             if (isStudent()) {
                 const ts = document.getElementById('tracker-search'); if (ts) ts.value = profile.personId || '';
-                const th = document.querySelector('#tab-tracker h3'); if (th) th.innerHTML = '<i class="fa-solid fa-chart-line text-amber-400"></i> My Progress — ' + (profile.name || '');
+                const th = document.querySelector('#tab-tracker h3'); if (th) th.innerHTML = '<i class="fa-solid fa-chart-line text-amber-400"></i> My Progress — ' + esc(profile.name || '');
                 window.renderTracker();
             }
         }
@@ -1269,7 +1269,7 @@
                 <table style="width: 100%; margin-bottom: 20px;">
                     <tr><td><b>ID:</b> ${esc(a.id)}</td><td><b>Class:</b> ${esc(a.class)}</td></tr>
                     <tr><td><b>Date:</b> ${esc(a.date)}</td><td><b>Instructor:</b> ${esc(a.instructor)}</td></tr>
-                    <tr><td colspan="2"><b>FINAL STATUS:</b> <span style="color: ${a.finalStatus === 'PASS' ? '#16a34a' : '#dc2626'}">${a.finalStatus}</span></td></tr>
+                    <tr><td colspan="2"><b>FINAL STATUS:</b> <span style="color: ${a.finalStatus === 'PASS' ? '#16a34a' : '#dc2626'}">${esc(a.finalStatus)}</span></td></tr>
                 </table>
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr style="background-color: #f8fafc;">
@@ -1281,11 +1281,11 @@
                         <tr>
                             <td style="border: 1px solid #ccc; padding: 8px;">
                                 <b>${esc(t.title)}</b><br>
-                                <small>${Object.entries(t.checklistStates || {}).map(([k,v]) => (v ? "[X] " : "[ ] ") + k).join(', ')}</small>
+                                <small>${Object.entries(t.checklistStates || {}).map(([k,v]) => (v ? "[X] " : "[ ] ") + esc(k)).join(', ')}</small>
                                 ${t.feedback ? `<p style="color: #64748b; font-style: italic;">Note: ${esc(t.feedback)}</p>` : ''}
                             </td>
                             <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">${formatTime(t.time)}</td>
-                            <td style="border: 1px solid #ccc; padding: 8px; text-align: center; font-weight: bold;">${t.manualStatus}</td>
+                            <td style="border: 1px solid #ccc; padding: 8px; text-align: center; font-weight: bold;">${esc(t.manualStatus)}</td>
                         </tr>
                     `).join('')}
                 </table>
@@ -1454,7 +1454,7 @@
             if (eb) {
                 if (window.state.editingId) {
                     eb.classList.remove('hidden');
-                    eb.innerHTML = '<i class="fa-solid fa-pen mr-1"></i> EDITING an existing record (' + (c.date || '') + ') currently logged to <b>' + (c.name || '') + ' (' + (c.id || '') + ')</b>. If it belongs to a different student, cancel and use <b>Correct Student</b> instead — or change the Candidate fields here and SAVE: the record moves to that student and the old student loses it.';
+                    eb.innerHTML = '<i class="fa-solid fa-pen mr-1"></i> EDITING an existing record (' + esc(c.date || '') + ') currently logged to <b>' + esc(c.name || '') + ' (' + esc(c.id || '') + ')</b>. If it belongs to a different student, cancel and use <b>Correct Student</b> instead — or change the Candidate fields here and SAVE: the record moves to that student and the old student loses it.';
                 } else { eb.classList.add('hidden'); eb.innerHTML = ''; }
             }
             const nameEl = document.getElementById('eval-name');
@@ -1559,7 +1559,8 @@
             if (instSel) {
                 const names = [...new Set(window.state.evals.map(e => e.instructor).filter(Boolean))].sort();
                 const cur = instSel.value;
-                instSel.innerHTML = '<option value="">All instructors</option>' + names.map(n => `<option value="${n}">${n}</option>`).join('');
+                /* v2.13.2: escape user text in My Progress title, EDITING banner, instructor filter, Word export. */
+                instSel.innerHTML = '<option value="">All instructors</option>' + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
                 instSel.value = names.includes(cur) ? cur : '';
                 dInst = instSel.value;
             }
